@@ -48,7 +48,6 @@ NSArray* getInterElementSpaces() {
 NSUInteger getInterElementSpaceArrayIndexForType(MTMathAtomType type, BOOL row) {
     switch (type) {
         case kMTMathAtomColor:
-        case kMTMathAtomColorbox:
         case kMTMathAtomOrdinary:
         case kMTMathAtomPlaceholder:   // A placeholder is treated as ordinary
             return 0;
@@ -630,21 +629,6 @@ static void getBboxDetails(CGRect bbox, CGFloat* ascent, CGFloat* descent)
                 break;
             }
                 
-            case kMTMathAtomColorbox: {
-                // stash the existing layout
-                if (_currentLine.length > 0) {
-                    [self addDisplayLine];
-                }
-                MTMathColorbox* colorboxAtom = (MTMathColorbox*) atom;
-                MTDisplay* display = [MTTypesetter createLineForMathList:colorboxAtom.innerList font:_font style:_style];
-                
-                display.localBackgroundColor = [MTColor colorFromHexString:colorboxAtom.colorString];
-                display.position = _currentPosition;
-                _currentPosition.x += display.width;
-                [_displayAtoms addObject:display];
-                break;
-            }
-                
             case kMTMathAtomRadical: {
                 // stash the existing layout
                 if (_currentLine.length > 0) {
@@ -707,7 +691,12 @@ static void getBboxDetails(CGRect bbox, CGFloat* ascent, CGFloat* descent)
                 }
                 [self addInterElementSpace:prevNode currentType:atom.type];
                 MTInner* inner = (MTInner*) atom;
-              MTInnerDisplay* display = [self makeInner:inner atIndex:atom.indexRange.location];
+                MTDisplay* display = nil;
+                if (inner.leftBoundary || inner.rightBoundary) {
+                    display = [self makeLeftRight:inner];
+                } else {
+                    display = [MTTypesetter createLineForMathList:inner.innerList font:_font style:_style cramped:_cramped];
+                }
                 display.position = _currentPosition;
                 _currentPosition.x += display.width;
                 [_displayAtoms addObject:display];
@@ -1297,7 +1286,7 @@ static void getBboxDetails(CGRect bbox, CGFloat* ascent, CGFloat* descent)
     // Get the bounds for these glyphs
     CTFontGetBoundingRectsForGlyphs(_styleFont.ctFont, kCTFontHorizontalOrientation, glyphs, bboxes, numVariants);
     CTFontGetAdvancesForGlyphs(_styleFont.ctFont, kCTFontHorizontalOrientation, glyphs, advances, numVariants);
-    CGFloat ascent = 0.0, descent = 0.0, width = 0.0;
+    CGFloat ascent, descent, width;
     for (int i = 0; i < numVariants; i++) {
         CGRect bounds = bboxes[i];
         width = advances[i].width;
@@ -1502,6 +1491,47 @@ static void getBboxDetails(CGRect bbox, CGFloat* ascent, CGFloat* descent)
 
 #pragma mark Large delimiters
 
+// Delimiter shortfall from plain.tex
+static const NSInteger kDelimiterFactor = 901;
+static const NSInteger kDelimiterShortfallPoints = 5;
+
+- (MTDisplay*) makeLeftRight:(MTInner*) inner
+{
+    NSAssert(inner.leftBoundary || inner.rightBoundary, @"Inner should have a boundary to call this function");
+    
+    MTMathListDisplay* innerListDisplay = [MTTypesetter createLineForMathList:inner.innerList font:_font style:_style cramped:_cramped spaced:YES];
+    CGFloat axisHeight = _styleFont.mathTable.axisHeight;
+    // delta is the max distance from the axis
+    CGFloat delta = MAX(innerListDisplay.ascent - axisHeight, innerListDisplay.descent + axisHeight);
+    CGFloat d1 = (delta / 500) * kDelimiterFactor;  // This represents atleast 90% of the formula
+    CGFloat d2 = 2 * delta - kDelimiterShortfallPoints;  // This represents a shortfall of 5pt
+    // The size of the delimiter glyph should cover at least 90% of the formula or
+    // be at most 5pt short.
+    CGFloat glyphHeight = MAX(d1, d2);
+    
+    NSMutableArray* innerElements = [[NSMutableArray alloc] init];
+    CGPoint position = CGPointZero;
+    if (inner.leftBoundary && inner.leftBoundary.nucleus.length > 0) {
+        MTDisplay* leftGlyph = [self findGlyphForBoundary:inner.leftBoundary.nucleus withHeight:glyphHeight];
+        leftGlyph.position = position;
+        position.x += leftGlyph.width;
+        [innerElements addObject:leftGlyph];
+    }
+    
+    innerListDisplay.position = position;
+    position.x += innerListDisplay.width;
+    [innerElements addObject:innerListDisplay];
+    
+    if (inner.rightBoundary && inner.rightBoundary.nucleus.length > 0) {
+        MTDisplay* rightGlyph = [self findGlyphForBoundary:inner.rightBoundary.nucleus withHeight:glyphHeight];
+        rightGlyph.position = position;
+        position.x += rightGlyph.width;
+        [innerElements addObject:rightGlyph];
+    }
+    MTMathListDisplay* innerDisplay = [[MTMathListDisplay alloc] initWithDisplays:innerElements range:inner.indexRange];
+    return innerDisplay;
+}
+
 - (MTDisplay*) findGlyphForBoundary:(NSString*) delimiter withHeight:(CGFloat) glyphHeight
 {
     CGFloat glyphAscent, glyphDescent, glyphWidth;
@@ -1698,10 +1728,9 @@ static const CGFloat kJotMultiplier = 0.3; // A jot is 3pt for a 10pt font.
     }
     
     CGFloat columnWidths[numColumns];
-    // NOTE: Using memset to initialize columnWidths array avoids
-    // Xcode Analyze "Assigned value is garbage or undefined".
-    // https://stackoverflow.com/questions/21191194/analyzer-warning-assigned-value-is-garbage-or-undefined
-    memset(columnWidths, 0, sizeof(columnWidths));
+    for (int i = 0; i < numColumns; i++) {
+        columnWidths[i] = 0;
+    }
     NSArray<NSArray<MTDisplay*>*>* displays = [self typesetCells:table columnWidths:columnWidths];
     
     // Position all the columns in each row
@@ -1812,46 +1841,4 @@ static const CGFloat kJotMultiplier = 0.3; // A jot is 3pt for a 10pt font.
         row.position = CGPointMake(row.position.x, row.position.y - shiftDown);
     }
 }
-
-#pragma mark inner
-
-// Delimiter shortfall from plain.tex
-static const NSInteger kDelimiterFactor = 901;
-static const NSInteger kDelimiterShortfallPoints = 5;
-
-- (MTInnerDisplay*) makeInner:(MTInner*) inner atIndex:(NSUInteger) index
-{
-  NSAssert(inner.leftBoundary || inner.rightBoundary, @"Inner should have a boundary to call this function");
-  
-  MTMathListDisplay* innerListDisplay = [MTTypesetter createLineForMathList:inner.innerList font:_font style:_style cramped:_cramped];
-  CGFloat axisHeight = _styleFont.mathTable.axisHeight;
-  // delta is the max distance from the axis
-  CGFloat delta = MAX(innerListDisplay.ascent - axisHeight, innerListDisplay.descent + axisHeight);
-  CGFloat d1 = (delta / 500) * kDelimiterFactor;  // This represents atleast 90% of the formula
-  CGFloat d2 = 2 * delta - kDelimiterShortfallPoints;  // This represents a shortfall of 5pt
-  // The size of the delimiter glyph should cover at least 90% of the formula or
-  // be at most 5pt short.
-  CGFloat glyphHeight = MAX(d1, d2);
-  
-  MTDisplay* leftDelimiter = nil;
-  if (inner.leftBoundary && inner.leftBoundary.nucleus.length > 0) {
-    MTDisplay* leftGlyph = [self findGlyphForBoundary:inner.leftBoundary.nucleus withHeight:glyphHeight];
-    if (leftGlyph) {
-      leftDelimiter = leftGlyph;
-    }
-  }
-  
-  MTDisplay* rightDelimiter = nil;
-  if (inner.rightBoundary && inner.rightBoundary.nucleus.length > 0) {
-    MTDisplay* rightGlyph = [self findGlyphForBoundary:inner.rightBoundary.nucleus withHeight:glyphHeight];
-    if (rightGlyph) {
-      rightDelimiter = rightGlyph;
-    }
-  }
-
-  MTInnerDisplay* innerDisplay = [[MTInnerDisplay alloc] initWithInner:innerListDisplay leftDelimiter:leftDelimiter rightDelimiter:rightDelimiter atIndex: index];
-  
-  return innerDisplay;
-}
-
 @end

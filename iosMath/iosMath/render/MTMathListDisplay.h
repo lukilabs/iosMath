@@ -52,8 +52,7 @@ NS_ASSUME_NONNULL_BEGIN
 // The local color, if the color was mutated local with the color
 // command
 @property (nonatomic, nullable) MTColor *localTextColor;
-/// The background color for this display.
-@property (nonatomic, nullable) MTColor *localBackgroundColor;
+
 @end
 
 /// A rendering of a single CTLine as an MTDisplay
@@ -88,9 +87,7 @@ typedef NS_ENUM(unsigned int, MTLinePosition)  {
     /// Positioned at a subscript
     kMTLinePositionSubscript,
     /// Positioned at a superscript
-    kMTLinePositionSuperscript,
-    /// Positioned at an inner
-    kMTLinePositionInner
+    kMTLinePositionSuperscript
 };
 
 /// Where the line is positioned
@@ -184,27 +181,6 @@ typedef NS_ENUM(unsigned int, MTLinePosition)  {
 /** A display representing the accent. It's position is relative to the current display.
  */
 @property (nonatomic, readonly) MTGlyphDisplay* accent;
-
-@end
-
-/// Rendering of an list with delimiters
-@interface MTInnerDisplay : MTDisplay
-
-- (instancetype)init NS_UNAVAILABLE;
-
-/** A display representing the inner list that can be wrapped in delimiters.
- It's position is relative to the parent is not treated as a sub-display.
- */
-@property (nonatomic, readonly) MTMathListDisplay* inner;
-
-/** A display representing the delimiters. Their position is relative
- to the parent are not treated as a sub-display.
- */
-@property (nonatomic, readonly, nullable) MTDisplay* leftDelimiter;
-@property (nonatomic, readonly, nullable) MTDisplay* rightDelimiter;
-
-/// Denotes the location in the parent MTList.
-@property (nonatomic, readonly) NSUInteger index;
 
 @end
 

@@ -49,9 +49,7 @@ typedef NS_ENUM(unsigned int, MTMathListSubIndexType) {
     /// The subindex indexes into the radicand (only valid for radicals)
     kMTSubIndexTypeRadicand,
     /// The subindex indexes into the degree (only valid for radicals)
-    kMTSubIndexTypeDegree,
-    /// The subindex indexes into the inner list (only valid for inner)
-    kMTSubIndexTypeInner
+    kMTSubIndexTypeDegree
 };
 
 

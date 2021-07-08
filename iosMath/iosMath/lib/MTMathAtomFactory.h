@@ -64,7 +64,7 @@ FOUNDATION_EXPORT NSString *const MTSymbolDegree;
  - Chars with special meaning in latex: ^ _ { } \
  All other characters will have a non-nil atom returned.
  */
-+ (nullable MTMathAtom*) atomForCharacter:(unichar) ch;
++ (MTMathAtom*) atomForCharacter:(unichar) ch;
 
 /** Returns a `MTMathList` with one atom per character in the given string. This function
  does not do any LaTeX conversion or interpretation. It simply uses `atomForCharacter` to
@@ -74,7 +74,7 @@ FOUNDATION_EXPORT NSString *const MTSymbolDegree;
 /** Returns an atom with the right type for a given latex symbol (e.g. theta)
  If the latex symbol is unknown this will return nil. This supports LaTeX aliases as well.
  */
-+ (nullable MTMathAtom*) atomForLatexSymbolName:(NSString*) symbolName;
++ (MTMathAtom*) atomForLatexSymbolName:(NSString*) symbolName;
 
 /** Finds the name of the LaTeX symbol name for the given atom. This function is a reverse
  of the above function. If no latex symbol name corresponds to the atom, then this returns `nil`
@@ -84,7 +84,7 @@ FOUNDATION_EXPORT NSString *const MTSymbolDegree;
  alias.
  @note: This function does not convert MathSpaces to latex command names either.
  */
-+ (nullable NSString*) latexSymbolNameForAtom:(MTMathAtom*) atom;
++ (NSString*) latexSymbolNameForAtom:(MTMathAtom*) atom;
 
 /** Define a latex symbol for rendering. This function allows defining custom symbols that are
  not already present in the default set, or override existing symbols with new meaning.
@@ -95,7 +95,7 @@ FOUNDATION_EXPORT NSString *const MTSymbolDegree;
 /** Returns a list of all supported lated symbols names. */
 + (NSArray<NSString*>*) supportedLatexSymbolNames;
 
-/** Returns a large opertor for the given name. If limits is true, limits are set up on
+/** Returns a large opertor for the given name. If limits is true, limits are set up on 
  the operator and displyed differently. */
 + (MTLargeOperator *)operatorWithName:(NSString *)name limits:(bool) limits;
 
@@ -103,7 +103,7 @@ FOUNDATION_EXPORT NSString *const MTSymbolDegree;
  such as `grave`, `hat` etc. If the name is not a recognized accent name, this
  returns nil. The `innerList` of the returned `MTAccent` is nil.
  */
-+ (nullable MTAccent*) accentWithName:(NSString*) accentName;
++ (MTAccent*) accentWithName:(NSString*) accentName;
 
 /** Returns the accent name for the given accent. This is the reverse of the above
  function. */
@@ -115,14 +115,14 @@ FOUNDATION_EXPORT NSString *const MTSymbolDegree;
  @note In order to distinguish between the delimiter '|' and the delimiter '\|' the delimiter '\|'
  the has been renamed to '||'.
  */
-+(nullable MTMathAtom*) boundaryAtomForDelimiterName:(NSString*) delimiterName;
++(MTMathAtom*) boundaryAtomForDelimiterName:(NSString*) delimiterName;
 
 /** Returns the delimiter name for a boundary atom. This is a reverse of the above function.
  If the atom is not a boundary atom or if the delimiter value is unknown this returns `nil`.
  @note This is not an exact reverse of the above function. Some delimiters have two names (e.g.
  `<` and `langle`) and this function always returns the shorter name.
  */
-+ (nullable NSString*) delimiterNameForBoundaryAtom:(MTMathAtom*) boundary;
++ (NSString*) delimiterNameForBoundaryAtom:(MTMathAtom*) boundary;
 
 /** Returns a font style associated with the name. If none is found returns NSNotFound. */
 + (MTFontStyle) fontStyleWithName:(NSString*) fontName;
@@ -144,7 +144,7 @@ FOUNDATION_EXPORT NSString *const MTSymbolDegree;
  @note The reason this function returns a `MTMathAtom` and not a `MTMathTable` is because some
  matrix environments are have builtin delimiters added to the table and hence are returned as inner atoms.
  */
-+ (nullable MTMathAtom*) tableWithEnvironment:(nullable NSString*) env rows:(NSArray<NSArray<MTMathList*>*>*) rows error:(NSError**) error;
++ (MTMathAtom*) tableWithEnvironment:(nullable NSString*) env rows:(NSArray<NSArray<MTMathList*>*>*) rows error:(NSError**) error;
 @end
 
 NS_ASSUME_NONNULL_END
