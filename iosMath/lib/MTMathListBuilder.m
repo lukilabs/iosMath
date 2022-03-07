@@ -641,6 +641,19 @@ NSString *const MTParseError = @"ParseError";
             // If there is an error building the list, bail out early.
             return nil;
         }
+        
+        NSInteger safeCurrentRow = MIN(currentRow, rows.count - 1);
+        NSInteger safeCurrentCol = MIN(currentRow, rows[safeCurrentRow].count - 1);
+        if (safeCurrentRow != currentRow) {
+            [self setError:MTParseErrorMissingEnd message:@"Row Index out of bounds! Don't do this!"];
+            return nil;
+        }
+        
+        if (safeCurrentCol != currentCol) {
+            [self setError:MTParseErrorMissingEnd message:@"Col Index out of bounds! Don't do this!"];
+            return nil;
+        }
+        
         rows[currentRow][currentCol] = list;
         currentCol++;
         if (_currentEnv.numRows > currentRow) {
