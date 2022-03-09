@@ -643,7 +643,7 @@ NSString *const MTParseError = @"ParseError";
         }
         
         NSInteger safeCurrentRow = MIN(currentRow, rows.count - 1);
-        NSInteger safeCurrentCol = MIN(currentRow, rows[safeCurrentRow].count - 1);
+        NSInteger safeCurrentCol = MIN(currentCol, rows[safeCurrentRow].count - 1);
         if (safeCurrentRow != currentRow) {
             [self setError:MTParseErrorMissingEnd message:@"Row Index out of bounds! Don't do this!"];
             return nil;
