@@ -622,7 +622,7 @@ NSString *const MTParseError = @"ParseError";
     MTEnvProperties* oldEnv = _currentEnv;
     _currentEnv = [[MTEnvProperties alloc] initWithName:env];
     NSInteger currentRow = 0;
-    NSInteger currentCol = 0;
+    NSInteger currentCol = 0; // Current Col is actually the next one...
     NSMutableArray<NSMutableArray<MTMathList*>*>* rows = [NSMutableArray array];
     rows[0] = [NSMutableArray array];
     if (firstList) {
@@ -643,7 +643,7 @@ NSString *const MTParseError = @"ParseError";
         }
         
         NSInteger safeCurrentRow = MIN(currentRow, rows.count - 1);
-        NSInteger safeCurrentCol = MIN(currentCol, rows[safeCurrentRow].count - 1);
+        NSInteger safeCurrentCol = MIN(currentCol, rows[safeCurrentRow].count);
         if (safeCurrentRow != currentRow) {
             [self setError:MTParseErrorMissingEnd message:@"Row Index out of bounds! Don't do this!"];
             return nil;
