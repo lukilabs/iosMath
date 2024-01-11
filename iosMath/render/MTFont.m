@@ -48,6 +48,9 @@
 
 + (NSBundle*) fontBundle
 {
+#ifdef SWIFTPM_MODULE_BUNDLE
+    return SWIFTPM_MODULE_BUNDLE;
+#endif
     // Uses bundle for class so that this can be access by the unit tests.
     return [NSBundle bundleWithURL:[[NSBundle bundleForClass:[self class]] URLForResource:@"mathFonts" withExtension:@"bundle"]];
 }
