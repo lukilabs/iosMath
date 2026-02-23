@@ -733,4 +733,125 @@
     [self assertParses:latex];
 }
 
+#pragma mark - Phase 5: Macro System — \def
+
+- (void)testDefSimple
+{
+    // \def\foo{x + y} followed by usage
+    [self assertParses:@"\\def\\foo{x + y} \\foo"];
+}
+
+- (void)testDefWithOneParam
+{
+    // \def\sq#1{#1^2} then \sq{x}
+    [self assertParses:@"\\def\\sq#1{#1^2} \\sq{x}"];
+}
+
+- (void)testDefWithTwoParams
+{
+    // \def\add#1#2{#1 + #2}
+    [self assertParses:@"\\def\\add#1#2{#1 + #2} \\add{a}{b}"];
+}
+
+- (void)testDefVerifyExpansion
+{
+    NSError *error = nil;
+    NSString *latex = @"\\def\\R{\\mathbb{R}} \\R";
+    MTMathList *list = [MTMathListBuilder buildFromString:latex error:&error];
+    XCTAssertNil(error, @"Parse error: %@", error);
+    XCTAssertNotNil(list);
+    // Should contain the zero-width space from \def and the expanded \R
+    XCTAssertTrue(list.atoms.count >= 2, @"Expected at least 2 atoms, got %lu", (unsigned long)list.atoms.count);
+}
+
+- (void)testDefOverwritesPrevious
+{
+    // Second \def overwrites the first
+    [self assertParses:@"\\def\\x{a} \\def\\x{b} \\x"];
+}
+
+#pragma mark - Phase 5: Macro System — \newcommand
+
+- (void)testNewcommandSimple
+{
+    [self assertParses:@"\\newcommand{\\foo}{x + y} \\foo"];
+}
+
+- (void)testNewcommandWithParams
+{
+    [self assertParses:@"\\newcommand{\\sq}[1]{#1^2} \\sq{x}"];
+}
+
+- (void)testNewcommandTwoParams
+{
+    [self assertParses:@"\\newcommand{\\fr}[2]{\\frac{#1}{#2}} \\fr{a}{b}"];
+}
+
+- (void)testRenewcommand
+{
+    [self assertParses:@"\\renewcommand{\\vec}[1]{\\overrightarrow{#1}} \\vec{AB}"];
+}
+
+- (void)testProvidecommandNew
+{
+    // providecommand defines if not yet defined
+    [self assertParses:@"\\providecommand{\\foo}{xyz} \\foo"];
+}
+
+- (void)testProvidecommandExisting
+{
+    // providecommand skips if already defined (e.g., via prior \def)
+    [self assertParses:@"\\def\\foo{abc} \\providecommand{\\foo}{xyz} \\foo"];
+}
+
+#pragma mark - Phase 5: Macro System — \let
+
+- (void)testLetAlias
+{
+    [self assertParses:@"\\let\\myint=\\int \\myint_0^1"];
+}
+
+- (void)testLetAliasNoEquals
+{
+    // \let without = separator
+    [self assertParses:@"\\let\\mysum\\sum \\mysum_{i=0}^{n}"];
+}
+
+- (void)testLetVerifyExpansion
+{
+    NSError *error = nil;
+    NSString *latex = @"\\let\\arrow=\\rightarrow a \\arrow b";
+    MTMathList *list = [MTMathListBuilder buildFromString:latex error:&error];
+    XCTAssertNil(error, @"Parse error: %@", error);
+    XCTAssertNotNil(list);
+    // Should have: zero-space, a, rightarrow-atom, b
+    XCTAssertTrue(list.atoms.count >= 3);
+}
+
+#pragma mark - Phase 5: Macro System — Nested/Recursive
+
+- (void)testNestedMacros
+{
+    // A macro that uses another macro
+    [self assertParses:@"\\def\\inner{x} \\def\\outer{\\inner + y} \\outer"];
+}
+
+- (void)testMacroInFraction
+{
+    [self assertParses:@"\\def\\n{n+1} \\frac{\\n}{2}"];
+}
+
+- (void)testMacroWithComplexExpansion
+{
+    [self assertParses:@"\\newcommand{\\bfrac}[2]{\\frac{\\mathbf{#1}}{\\mathbf{#2}}} \\bfrac{a}{b}"];
+}
+
+#pragma mark - Phase 5: Combined Stress Test
+
+- (void)testPhase5Combined
+{
+    NSString *latex = @"\\def\\R{\\mathbb{R}} \\newcommand{\\norm}[1]{\\left\\|#1\\right\\|} \\let\\ra=\\rightarrow f: \\R \\ra \\R, \\norm{x}";
+    [self assertParses:latex];
+}
+
 @end

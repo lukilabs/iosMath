@@ -37,6 +37,15 @@ NSString *const MTParseError = @"ParseError";
 
 @end
 
+/// Stores a user-defined macro definition.
+@interface MTMacroDefinition : NSObject
+@property (nonatomic) NSString* expansion;
+@property (nonatomic) NSUInteger numParameters;
+@end
+
+@implementation MTMacroDefinition
+@end
+
 @implementation MTMathListBuilder {
     unichar* _chars;
     int _currentChar;
@@ -45,6 +54,8 @@ NSString *const MTParseError = @"ParseError";
     MTEnvProperties* _currentEnv;
     MTFontStyle _currentFontStyle;
     BOOL _spacesAllowed;
+    NSMutableDictionary<NSString*, MTMacroDefinition*>* _macros;
+    NSUInteger _expansionDepth;
 }
 
 - (instancetype)initWithString:(NSString *)str
@@ -57,6 +68,8 @@ NSString *const MTParseError = @"ParseError";
         [str getCharacters:_chars range:NSMakeRange(0, str.length)];
         _currentChar = 0;
         _currentFontStyle = kMTFontStyleDefault;
+        _macros = [NSMutableDictionary dictionary];
+        _expansionDepth = 0;
     }
     return self;
 }
@@ -788,7 +801,19 @@ NSString *const MTParseError = @"ParseError";
             return nil;
         }
         return [MTMathAtomFactory operatorWithName:operatorName limits:limits];
+    } else if ([command isEqualToString:@"def"] || [command isEqualToString:@"gdef"]) {
+        return [self parseDefCommand];
+    } else if ([command isEqualToString:@"newcommand"] || [command isEqualToString:@"renewcommand"]
+               || [command isEqualToString:@"providecommand"]) {
+        return [self parseNewcommand:command];
+    } else if ([command isEqualToString:@"let"]) {
+        return [self parseLetCommand];
     } else {
+        // Check user-defined macros before reporting error
+        MTMathAtom* expanded = [self expandMacro:command];
+        if (expanded) {
+            return expanded;
+        }
         NSString* errorMessage = [NSString stringWithFormat:@"Invalid command \\%@", command];
         [self setError:MTParseErrorInvalidCommand message:errorMessage];
         return nil;
@@ -894,6 +919,286 @@ NSString *const MTParseError = @"ParseError";
         return true;
     }
     return false;
+}
+
+#pragma mark - Macro System
+
+/// Read the raw text of a brace-delimited group (without parsing it as math).
+/// Returns the text between { and }, not including the braces.
+- (NSString*) readRawBraceGroup
+{
+    [self skipSpaces];
+    if (![self hasCharacters]) return nil;
+
+    unichar ch = [self getNextCharacter];
+    if (ch != '{') {
+        [self unlookCharacter];
+        [self setError:MTParseErrorCharacterNotFound message:@"Missing {"];
+        return nil;
+    }
+
+    NSMutableString* result = [NSMutableString string];
+    NSInteger braceDepth = 1;
+    while ([self hasCharacters] && braceDepth > 0) {
+        ch = [self getNextCharacter];
+        if (ch == '{') {
+            braceDepth++;
+            [result appendString:@"{"];
+        } else if (ch == '}') {
+            braceDepth--;
+            if (braceDepth > 0) {
+                [result appendString:@"}"];
+            }
+        } else {
+            [result appendString:[NSString stringWithCharacters:&ch length:1]];
+        }
+    }
+    if (braceDepth != 0) {
+        [self setError:MTParseErrorMismatchBraces message:@"Missing }"];
+        return nil;
+    }
+    return result;
+}
+
+/// Parse \def\commandname#1#2{expansion}
+- (MTMathAtom*) parseDefCommand
+{
+    [self skipSpaces];
+    // Read the command name being defined: \commandname
+    if (![self hasCharacters]) {
+        [self setError:MTParseErrorInvalidCommand message:@"Missing command name after \\def"];
+        return nil;
+    }
+    unichar ch = [self getNextCharacter];
+    if (ch != '\\') {
+        [self setError:MTParseErrorInvalidCommand message:@"\\def must be followed by a command (\\name)"];
+        return nil;
+    }
+    NSString* name = [self readCommand];
+    if (!name) {
+        [self setError:MTParseErrorInvalidCommand message:@"Missing command name after \\def\\"];
+        return nil;
+    }
+
+    // Count parameter tokens: #1, #2, etc.
+    NSUInteger numParams = 0;
+    while ([self hasCharacters]) {
+        ch = [self getNextCharacter];
+        if (ch == '#') {
+            if ([self hasCharacters]) {
+                unichar digit = [self getNextCharacter];
+                if (digit >= '1' && digit <= '9') {
+                    NSUInteger paramNum = digit - '0';
+                    numParams = MAX(numParams, paramNum);
+                }
+            }
+        } else if (ch == '{') {
+            // Start of the expansion body — unlook so readRawBraceGroup can handle it
+            [self unlookCharacter];
+            break;
+        } else {
+            // Ignore other pattern chars
+        }
+    }
+
+    // Read the expansion body
+    NSString* expansion = [self readRawBraceGroup];
+    if (!expansion) return nil;
+
+    MTMacroDefinition* macro = [[MTMacroDefinition alloc] init];
+    macro.expansion = expansion;
+    macro.numParameters = numParams;
+    _macros[name] = macro;
+
+    // Return a zero-width space so the parse loop has something non-nil
+    return [[MTMathSpace alloc] initWithSpace:0];
+}
+
+/// Parse \newcommand{\name}[numParams]{expansion}
+- (MTMathAtom*) parseNewcommand:(NSString*) variant
+{
+    [self skipSpaces];
+    // Read command name: {\name} or \name
+    NSString* name = nil;
+    if ([self hasCharacters]) {
+        unichar ch = [self getNextCharacter];
+        if (ch == '{') {
+            // Read \name inside braces
+            if ([self hasCharacters]) {
+                ch = [self getNextCharacter];
+                if (ch == '\\') {
+                    name = [self readCommand];
+                }
+            }
+            if (![self expectCharacter:'}']) {
+                [self setError:MTParseErrorCharacterNotFound message:@"Missing } after command name"];
+                return nil;
+            }
+        } else if (ch == '\\') {
+            name = [self readCommand];
+        } else {
+            [self unlookCharacter];
+        }
+    }
+    if (!name) {
+        [self setError:MTParseErrorInvalidCommand message:[NSString stringWithFormat:@"Missing command name for \\%@", variant]];
+        return nil;
+    }
+
+    // providecommand: skip if already defined (as built-in or macro)
+    if ([variant isEqualToString:@"providecommand"]) {
+        if ([_macros objectForKey:name] ||
+            [MTMathAtomFactory atomForLatexSymbolName:name]) {
+            // Command already exists — skip the rest (read and discard)
+            [self skipSpaces];
+            if ([self hasCharacters]) {
+                unichar ch = [self getNextCharacter];
+                if (ch == '[') {
+                    // Skip optional parameter count
+                    while ([self hasCharacters]) {
+                        if ([self getNextCharacter] == ']') break;
+                    }
+                } else {
+                    [self unlookCharacter];
+                }
+            }
+            (void)[self readRawBraceGroup];  // Discard expansion body
+            return [[MTMathSpace alloc] initWithSpace:0];
+        }
+    }
+
+    // Read optional [numParams]
+    NSUInteger numParams = 0;
+    [self skipSpaces];
+    if ([self hasCharacters]) {
+        unichar ch = [self getNextCharacter];
+        if (ch == '[') {
+            NSMutableString* numStr = [NSMutableString string];
+            while ([self hasCharacters]) {
+                ch = [self getNextCharacter];
+                if (ch == ']') break;
+                [numStr appendString:[NSString stringWithCharacters:&ch length:1]];
+            }
+            numParams = (NSUInteger)[numStr integerValue];
+        } else {
+            [self unlookCharacter];
+        }
+    }
+
+    // Read {expansion}
+    NSString* expansion = [self readRawBraceGroup];
+    if (!expansion) return nil;
+
+    MTMacroDefinition* macro = [[MTMacroDefinition alloc] init];
+    macro.expansion = expansion;
+    macro.numParameters = numParams;
+    _macros[name] = macro;
+
+    return [[MTMathSpace alloc] initWithSpace:0];
+}
+
+/// Parse \let\alias=\original or \let\alias\original
+- (MTMathAtom*) parseLetCommand
+{
+    [self skipSpaces];
+    if (![self hasCharacters]) {
+        [self setError:MTParseErrorInvalidCommand message:@"Missing command after \\let"];
+        return nil;
+    }
+
+    // Read the alias: \alias
+    unichar ch = [self getNextCharacter];
+    if (ch != '\\') {
+        [self setError:MTParseErrorInvalidCommand message:@"\\let must be followed by a command"];
+        return nil;
+    }
+    NSString* alias = [self readCommand];
+
+    // Skip optional =
+    [self skipSpaces];
+    if ([self hasCharacters]) {
+        ch = [self getNextCharacter];
+        if (ch != '=') {
+            [self unlookCharacter];
+        }
+    }
+
+    // Read the original: \original
+    [self skipSpaces];
+    if (![self hasCharacters]) {
+        [self setError:MTParseErrorInvalidCommand message:@"Missing command after \\let\\alias"];
+        return nil;
+    }
+    ch = [self getNextCharacter];
+    if (ch != '\\') {
+        [self setError:MTParseErrorInvalidCommand message:@"\\let alias must reference a command"];
+        return nil;
+    }
+    NSString* original = [self readCommand];
+
+    // Create a macro that simply expands to the original command
+    MTMacroDefinition* macro = [[MTMacroDefinition alloc] init];
+    macro.expansion = [NSString stringWithFormat:@"\\%@", original];
+    macro.numParameters = 0;
+    _macros[alias] = macro;
+
+    return [[MTMathSpace alloc] initWithSpace:0];
+}
+
+/// Attempt to expand a user-defined macro. Returns nil if no macro with this name exists.
+- (MTMathAtom*) expandMacro:(NSString*) name
+{
+    MTMacroDefinition* macro = _macros[name];
+    if (!macro) return nil;
+
+    // Check expansion depth
+    static const NSUInteger kMaxExpansionDepth = 1000;
+    if (_expansionDepth >= kMaxExpansionDepth) {
+        [self setError:MTParseErrorInvalidCommand message:@"Maximum macro expansion depth exceeded"];
+        return nil;
+    }
+    _expansionDepth++;
+
+    // Read arguments from the current stream
+    NSMutableArray<NSString*>* args = [NSMutableArray array];
+    for (NSUInteger i = 0; i < macro.numParameters; i++) {
+        NSString* arg = [self readRawBraceGroup];
+        if (!arg) {
+            _expansionDepth--;
+            return nil;
+        }
+        [args addObject:arg];
+    }
+
+    // Perform parameter substitution: #1 → arg[0], #2 → arg[1], etc.
+    NSString* expanded = macro.expansion;
+    for (NSUInteger i = 0; i < args.count; i++) {
+        NSString* placeholder = [NSString stringWithFormat:@"#%lu", (unsigned long)(i + 1)];
+        expanded = [expanded stringByReplacingOccurrencesOfString:placeholder withString:args[i]];
+    }
+
+    // Parse the expanded string using a new builder that shares our macros
+    MTMathListBuilder* subBuilder = [[MTMathListBuilder alloc] initWithString:expanded];
+    subBuilder->_macros = _macros;
+    subBuilder->_expansionDepth = _expansionDepth;
+    MTMathList* result = [subBuilder build];
+    _expansionDepth--;
+
+    if (subBuilder.error) {
+        if (!_error) _error = subBuilder.error;
+        return nil;
+    }
+    if (!result || result.atoms.count == 0) {
+        return [[MTMathSpace alloc] initWithSpace:0];
+    }
+
+    // Wrap multiple atoms in an MTInner so we return a single atom
+    if (result.atoms.count == 1) {
+        return result.atoms[0];
+    }
+    MTInner* inner = [MTInner new];
+    inner.innerList = result;
+    return inner;
 }
 
 - (void) readArrayColumnSpec:(NSArray<NSNumber*>**)alignments verticalLines:(NSArray<NSNumber*>**)vLines
