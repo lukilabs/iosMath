@@ -66,7 +66,6 @@
     copyFont.ctFont = newCtFont;
     copyFont.rawMathTable = self.rawMathTable;
     copyFont.mathTable = [[MTFontMathTable alloc] initWithFont:copyFont mathTable:copyFont.rawMathTable];
-    CFRelease(newCtFont);
     // Propagate fallback fonts at the new size
     if (self.fallbackFonts) {
         NSMutableArray<MTFont *> *resizedFallbacks = [NSMutableArray arrayWithCapacity:self.fallbackFonts.count];
