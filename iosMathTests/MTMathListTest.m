@@ -445,13 +445,15 @@ _XCTPrimitiveAssertNotEqual(test, expression1, @#expression1, expression2, @#exp
     inner.innerList = list;
     inner.leftBoundary = [MTMathAtom atomWithType:kMTMathAtomBoundary value:@"("];
     inner.rightBoundary = [MTMathAtom atomWithType:kMTMathAtomBoundary value:@")"];
+    inner.limits = YES;
     XCTAssertEqual(inner.type, kMTMathAtomInner);
-    
+
     MTInner* copy = [inner copy];
     [MTMathListTest checkAtomCopy:copy original:inner forTest:self];
     [MTMathListTest checkListCopy:copy.innerList original:inner.innerList forTest:self];
     [MTMathListTest checkAtomCopy:copy.leftBoundary original:inner.leftBoundary forTest:self];
     [MTMathListTest checkAtomCopy:copy.rightBoundary original:inner.rightBoundary forTest:self];
+    XCTAssertEqual(copy.limits, inner.limits);
 }
 
 - (void) testSetInnerBoundary

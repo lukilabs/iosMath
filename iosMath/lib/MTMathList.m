@@ -493,6 +493,7 @@ static NSString* typeToText(MTMathAtomType type) {
     inner.innerList = [self.innerList copyWithZone:zone];
     inner.leftBoundary = [self.leftBoundary copyWithZone:zone];
     inner.rightBoundary = [self.rightBoundary copyWithZone:zone];
+    inner.limits = self.limits;
     return inner;
 }
 
