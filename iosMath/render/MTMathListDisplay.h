@@ -184,4 +184,27 @@ typedef NS_ENUM(unsigned int, MTLinePosition)  {
 
 @end
 
+/// Rendering of a phantom or smash — controls visibility and metric adjustments
+@interface MTPhantomDisplay : MTDisplay
+
+- (instancetype)init NS_UNAVAILABLE;
+
+/** The inner display. For smash variants this is drawn; for phantom variants it is not. */
+@property (nonatomic, readonly) MTMathListDisplay* inner;
+
+/** The phantom type controlling which dimensions are zeroed and whether content is visible. */
+@property (nonatomic, readonly) MTPhantomType phantomType;
+
+@end
+
+/// Rendering of boxed content — draws a rectangular border around the inner display
+@interface MTBoxedDisplay : MTDisplay
+
+- (instancetype)init NS_UNAVAILABLE;
+
+/** The inner display that is boxed. */
+@property (nonatomic, readonly) MTMathListDisplay* inner;
+
+@end
+
 NS_ASSUME_NONNULL_END

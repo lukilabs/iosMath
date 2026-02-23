@@ -48,6 +48,8 @@ NSArray* getInterElementSpaces() {
 NSUInteger getInterElementSpaceArrayIndexForType(MTMathAtomType type, BOOL row) {
     switch (type) {
         case kMTMathAtomColor:
+        case kMTMathAtomPhantom:
+        case kMTMathAtomBoxed:
         case kMTMathAtomOrdinary:
         case kMTMathAtomPlaceholder:   // A placeholder is treated as ordinary
             return 0;
@@ -768,6 +770,46 @@ static void getBboxDetails(CGRect bbox, CGFloat* ascent, CGFloat* descent)
                 break;
             }
                 
+            case kMTMathAtomPhantom: {
+                // stash the existing layout
+                if (_currentLine.length > 0) {
+                    [self addDisplayLine];
+                }
+                // Phantom is considered as Ord in rule 16.
+                [self addInterElementSpace:prevNode currentType:kMTMathAtomOrdinary];
+                atom.type = kMTMathAtomOrdinary;
+
+                MTPhantom* phantom = (MTPhantom*) atom;
+                MTDisplay* display = [self makePhantom:phantom];
+                [_displayAtoms addObject:display];
+                _currentPosition.x += display.width;
+                // add super scripts || subscripts
+                if (atom.subScript || atom.superScript) {
+                    [self makeScripts:atom display:display index:atom.indexRange.location delta:0];
+                }
+                break;
+            }
+
+            case kMTMathAtomBoxed: {
+                // stash the existing layout
+                if (_currentLine.length > 0) {
+                    [self addDisplayLine];
+                }
+                // Boxed is considered as Ord in rule 16.
+                [self addInterElementSpace:prevNode currentType:kMTMathAtomOrdinary];
+                atom.type = kMTMathAtomOrdinary;
+
+                MTBoxed* boxed = (MTBoxed*) atom;
+                MTDisplay* display = [self makeBoxed:boxed];
+                [_displayAtoms addObject:display];
+                _currentPosition.x += display.width;
+                // add super scripts || subscripts
+                if (atom.subScript || atom.superScript) {
+                    [self makeScripts:atom display:display index:atom.indexRange.location delta:0];
+                }
+                break;
+            }
+
             case kMTMathAtomTable: {
                 // stash the existing layout
                 if (_currentLine.length > 0) {
@@ -1397,16 +1439,24 @@ static void getBboxDetails(CGRect bbox, CGFloat* ascent, CGFloat* descent)
     NSRange range = [str rangeOfComposedCharacterSequenceAtIndex:index];
     unichar chars[range.length];
     [str getCharacters:chars range:range];
-    
-    // Get the glyph fromt the font
+
+    // Get the glyph from the primary font
     CGGlyph glyph[range.length];
-    bool found = CTFontGetGlyphsForCharacters(_styleFont.ctFont, chars, glyph, range
-                                              .length);
-    if (!found) {
-        // the font did not contain a glyph for our character, so we just return 0 (notdef)
-        return 0;
+    bool found = CTFontGetGlyphsForCharacters(_styleFont.ctFont, chars, glyph, range.length);
+    if (found) {
+        return glyph[0];
     }
-    return glyph[0];
+
+    // Try fallback fonts
+    for (MTFont *fallback in _styleFont.fallbackFonts) {
+        CGGlyph fbGlyph[range.length];
+        if (CTFontGetGlyphsForCharacters(fallback.ctFont, chars, fbGlyph, range.length)) {
+            return fbGlyph[0];
+        }
+    }
+
+    // No font contained this glyph
+    return 0;
 }
 
 #pragma mark Large Operators
@@ -1582,6 +1632,69 @@ static const NSInteger kDelimiterShortfallPoints = 5;
     overDisplay.descent = innerListDisplay.descent;
     overDisplay.width = innerListDisplay.width;
     return overDisplay;
+}
+
+#pragma mark Phantom/Smash
+
+- (MTDisplay*) makePhantom:(MTPhantom*) phantom
+{
+    MTMathListDisplay* innerListDisplay = [MTTypesetter createLineForMathList:phantom.innerList font:_font style:_style cramped:_cramped];
+    MTPhantomDisplay* phantomDisplay = [[MTPhantomDisplay alloc] initWithInner:innerListDisplay phantomType:phantom.phantomType position:_currentPosition range:phantom.indexRange];
+
+    switch (phantom.phantomType) {
+        case kMTPhantomFull:
+            // Full phantom: invisible, takes full dimensions
+            phantomDisplay.width = innerListDisplay.width;
+            phantomDisplay.ascent = innerListDisplay.ascent;
+            phantomDisplay.descent = innerListDisplay.descent;
+            break;
+        case kMTPhantomHorizontal:
+            // hphantom: invisible, takes width only
+            phantomDisplay.width = innerListDisplay.width;
+            phantomDisplay.ascent = 0;
+            phantomDisplay.descent = 0;
+            break;
+        case kMTPhantomVertical:
+            // vphantom: invisible, takes height only
+            phantomDisplay.width = 0;
+            phantomDisplay.ascent = innerListDisplay.ascent;
+            phantomDisplay.descent = innerListDisplay.descent;
+            break;
+        case kMTPhantomSmashBoth:
+            // smash (no option): visible, zeroes ascent and descent
+            phantomDisplay.width = innerListDisplay.width;
+            phantomDisplay.ascent = 0;
+            phantomDisplay.descent = 0;
+            break;
+        case kMTPhantomSmashTop:
+            // smash[t]: visible, zeroes ascent
+            phantomDisplay.width = innerListDisplay.width;
+            phantomDisplay.ascent = 0;
+            phantomDisplay.descent = innerListDisplay.descent;
+            break;
+        case kMTPhantomSmashBottom:
+            // smash[b]: visible, zeroes descent
+            phantomDisplay.width = innerListDisplay.width;
+            phantomDisplay.ascent = innerListDisplay.ascent;
+            phantomDisplay.descent = 0;
+            break;
+    }
+    return phantomDisplay;
+}
+
+#pragma mark Boxed
+
+- (MTDisplay*) makeBoxed:(MTBoxed*) boxed
+{
+    MTMathListDisplay* innerListDisplay = [MTTypesetter createLineForMathList:boxed.innerList font:_font style:_style cramped:_cramped];
+    CGFloat padding = _styleFont.mathTable.fractionNumeratorGapMin;  // Reuse a small gap metric as padding
+    MTBoxedDisplay* boxedDisplay = [[MTBoxedDisplay alloc] initWithInner:innerListDisplay position:_currentPosition range:boxed.indexRange];
+    boxedDisplay.padding = padding;
+    boxedDisplay.lineThickness = _styleFont.mathTable.fractionRuleThickness;
+    boxedDisplay.ascent = innerListDisplay.ascent + padding + boxedDisplay.lineThickness;
+    boxedDisplay.descent = innerListDisplay.descent + padding + boxedDisplay.lineThickness;
+    boxedDisplay.width = innerListDisplay.width + 2 * padding + 2 * boxedDisplay.lineThickness;
+    return boxedDisplay;
 }
 
 #pragma mark Accents

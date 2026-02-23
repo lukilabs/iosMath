@@ -54,19 +54,47 @@ const int kDefaultFontSize = 20;
     }
 }
 
+/// Returns a raw font (no fallbacks) for internal use in building fallback chains.
+- (MTFont *)rawFontWithName:(NSString *)name size:(CGFloat)size
+{
+    // Load without caching to avoid circular fallback setup
+    return [[MTFont alloc] initFontWithName:name size:size];
+}
+
 - (MTFont *)latinModernFontWithSize:(CGFloat)size
 {
-    return [self fontWithName:@"latinmodern-math" size:size];
+    MTFont *font = [self fontWithName:@"latinmodern-math" size:size];
+    if (!font.fallbackFonts) {
+        font.fallbackFonts = @[
+            [self rawFontWithName:@"xits-math" size:size],
+            [self rawFontWithName:@"texgyretermes-math" size:size]
+        ];
+    }
+    return font;
 }
 
 - (MTFont *)xitsFontWithSize:(CGFloat)size
 {
-    return [self fontWithName:@"xits-math" size:size];
+    MTFont *font = [self fontWithName:@"xits-math" size:size];
+    if (!font.fallbackFonts) {
+        font.fallbackFonts = @[
+            [self rawFontWithName:@"latinmodern-math" size:size],
+            [self rawFontWithName:@"texgyretermes-math" size:size]
+        ];
+    }
+    return font;
 }
 
 - (MTFont *)termesFontWithSize:(CGFloat)size
 {
-    return [self fontWithName:@"texgyretermes-math" size:size];
+    MTFont *font = [self fontWithName:@"texgyretermes-math" size:size];
+    if (!font.fallbackFonts) {
+        font.fallbackFonts = @[
+            [self rawFontWithName:@"latinmodern-math" size:size],
+            [self rawFontWithName:@"xits-math" size:size]
+        ];
+    }
+    return font;
 }
 
 - (MTFont *)defaultFont

@@ -24,6 +24,10 @@
 /** The font math table. */
 @property (nonatomic, readonly, nonnull) MTFontMathTable* mathTable;
 
+/** Fallback fonts to try when a glyph is not found in the primary font.
+ Set by MTFontManager. Each font is at the same point size. */
+@property (nonatomic, nullable) NSArray<MTFont *> *fallbackFonts;
+
 /** Returns the name of the given glyph or null if the glyph
  is not associated with the font. */
 - (nullable NSString*) getGlyphName:(CGGlyph) glyph;

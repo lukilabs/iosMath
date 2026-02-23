@@ -777,7 +777,110 @@ static BOOL isIos6Supported() {
     CGContextSetTextPosition(context, 0, 0);
     
     [self.accent draw:context];
-    
+
     CGContextRestoreGState(context);
 }
+@end
+
+#pragma mark - MTPhantomDisplay
+
+@implementation MTPhantomDisplay
+
+- (instancetype)initWithInner:(MTMathListDisplay *)inner phantomType:(MTPhantomType)phantomType position:(CGPoint)position range:(NSRange)range
+{
+    self = [super init];
+    if (self) {
+        _inner = inner;
+        _phantomType = phantomType;
+        self.position = position;
+        self.range = range;
+    }
+    return self;
+}
+
+- (void)setTextColor:(MTColor *)textColor
+{
+    [super setTextColor:textColor];
+    _inner.textColor = textColor;
+}
+
+- (void)draw:(CGContextRef)context
+{
+    // Phantom variants (full, horizontal, vertical) are invisible — don't draw.
+    // Smash variants are visible — draw the inner content.
+    switch (_phantomType) {
+        case kMTPhantomFull:
+        case kMTPhantomHorizontal:
+        case kMTPhantomVertical:
+            // No drawing — takes space but renders nothing
+            break;
+        case kMTPhantomSmashTop:
+        case kMTPhantomSmashBottom:
+        case kMTPhantomSmashBoth:
+            // Smash: content is visible, just metrics are adjusted
+            [self.inner draw:context];
+            break;
+    }
+}
+
+- (void)setPosition:(CGPoint)position
+{
+    super.position = position;
+    self.inner.position = CGPointMake(position.x, position.y);
+}
+
+@end
+
+#pragma mark - MTBoxedDisplay
+
+@implementation MTBoxedDisplay
+
+- (instancetype)initWithInner:(MTMathListDisplay *)inner position:(CGPoint)position range:(NSRange)range
+{
+    self = [super init];
+    if (self) {
+        _inner = inner;
+        _padding = 0;
+        _lineThickness = 1.0;
+        self.position = position;
+        self.range = range;
+    }
+    return self;
+}
+
+- (void)setTextColor:(MTColor *)textColor
+{
+    [super setTextColor:textColor];
+    _inner.textColor = textColor;
+}
+
+- (void)draw:(CGContextRef)context
+{
+    // Draw the inner content
+    [self.inner draw:context];
+
+    CGContextSaveGState(context);
+
+    [self.textColor setStroke];
+
+    // Draw a rectangular border around the content with padding
+    CGFloat x = self.position.x - self.padding;
+    CGFloat y = self.position.y - self.inner.descent - self.padding;
+    CGFloat w = self.inner.width + 2 * self.padding;
+    CGFloat h = self.inner.ascent + self.inner.descent + 2 * self.padding;
+    CGRect borderRect = CGRectMake(x, y, w, h);
+
+    MTBezierPath* path = [MTBezierPath bezierPathWithRect:borderRect];
+    path.lineWidth = self.lineThickness;
+    [path stroke];
+
+    CGContextRestoreGState(context);
+}
+
+- (void)setPosition:(CGPoint)position
+{
+    super.position = position;
+    self.inner.position = CGPointMake(position.x + self.padding, position.y);
+}
+
 @end

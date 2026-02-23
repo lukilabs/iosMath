@@ -303,6 +303,26 @@ NSString *const MTParseError = @"ParseError";
     return mutable;
 }
 
+- (NSString*) readOperatorName
+{
+    if (![self expectCharacter:'{']) {
+        return nil;
+    }
+    NSMutableString* name = [NSMutableString string];
+    while ([self hasCharacters]) {
+        unichar ch = [self getNextCharacter];
+        if (ch == '}') {
+            break;
+        }
+        // Allow letters, digits, and spaces in operator names (e.g. "lim sup")
+        [name appendString:[NSString stringWithCharacters:&ch length:1]];
+    }
+    if (name.length == 0) {
+        return nil;
+    }
+    return name;
+}
+
 - (void) skipSpaces
 {
     while ([self hasCharacters]) {
@@ -500,6 +520,133 @@ NSString *const MTParseError = @"ParseError";
         mathColor.colorString = [self readColor];
         mathColor.innerList = [self buildInternal:true];
         return mathColor;
+    } else if ([command isEqualToString:@"phantom"]) {
+        MTPhantom* phantom = [[MTPhantom alloc] initWithPhantomType:kMTPhantomFull];
+        phantom.innerList = [self buildInternal:true];
+        return phantom;
+    } else if ([command isEqualToString:@"hphantom"]) {
+        MTPhantom* phantom = [[MTPhantom alloc] initWithPhantomType:kMTPhantomHorizontal];
+        phantom.innerList = [self buildInternal:true];
+        return phantom;
+    } else if ([command isEqualToString:@"vphantom"]) {
+        MTPhantom* phantom = [[MTPhantom alloc] initWithPhantomType:kMTPhantomVertical];
+        phantom.innerList = [self buildInternal:true];
+        return phantom;
+    } else if ([command isEqualToString:@"smash"]) {
+        // Check for optional [t] or [b] argument
+        MTPhantomType smashType = kMTPhantomSmashBoth;
+        if ([self hasCharacters]) {
+            unichar next = [self getNextCharacter];
+            if (next == '[') {
+                // Read the option
+                if ([self hasCharacters]) {
+                    unichar option = [self getNextCharacter];
+                    if (option == 't') {
+                        smashType = kMTPhantomSmashTop;
+                    } else if (option == 'b') {
+                        smashType = kMTPhantomSmashBottom;
+                    }
+                    // Skip the closing ]
+                    if ([self hasCharacters]) {
+                        unichar closing = [self getNextCharacter];
+                        if (closing != ']') {
+                            [self unlookCharacter];
+                        }
+                    }
+                }
+            } else {
+                [self unlookCharacter];
+            }
+        }
+        MTPhantom* phantom = [[MTPhantom alloc] initWithPhantomType:smashType];
+        phantom.innerList = [self buildInternal:true];
+        return phantom;
+    } else if ([command isEqualToString:@"boxed"]) {
+        MTBoxed* boxed = [[MTBoxed alloc] init];
+        boxed.innerList = [self buildInternal:true];
+        return boxed;
+    } else if ([command isEqualToString:@"tiny"] || [command isEqualToString:@"scriptsize"]) {
+        return [[MTMathStyle alloc] initWithStyle:kMTLineStyleScriptScript];
+    } else if ([command isEqualToString:@"footnotesize"] || [command isEqualToString:@"small"]) {
+        return [[MTMathStyle alloc] initWithStyle:kMTLineStyleScript];
+    } else if ([command isEqualToString:@"normalsize"]) {
+        return [[MTMathStyle alloc] initWithStyle:kMTLineStyleText];
+    } else if ([command isEqualToString:@"large"] || [command isEqualToString:@"Large"]) {
+        return [[MTMathStyle alloc] initWithStyle:kMTLineStyleText];
+    } else if ([command isEqualToString:@"LARGE"] || [command isEqualToString:@"huge"] || [command isEqualToString:@"Huge"]) {
+        return [[MTMathStyle alloc] initWithStyle:kMTLineStyleDisplay];
+    } else if ([command isEqualToString:@"big"] || [command isEqualToString:@"Big"]
+               || [command isEqualToString:@"bigg"] || [command isEqualToString:@"Bigg"]) {
+        // \big — ordinary delimiter (no l/r/m distinction)
+        NSString* delim = [self readDelimiter];
+        if (!delim) {
+            NSString* errorMessage = [NSString stringWithFormat:@"Missing delimiter for \\%@", command];
+            [self setError:MTParseErrorMissingDelimiter message:errorMessage];
+            return nil;
+        }
+        MTMathAtom* atom = [MTMathAtomFactory atomForLatexSymbolName:delim];
+        if (!atom) {
+            // Try as a boundary delimiter
+            atom = [MTMathAtomFactory boundaryAtomForDelimiterName:delim];
+            if (atom) {
+                atom = [MTMathAtom atomWithType:kMTMathAtomOrdinary value:atom.nucleus];
+            }
+        }
+        if (!atom) {
+            atom = [MTMathAtom atomWithType:kMTMathAtomOrdinary value:delim];
+        }
+        return atom;
+    } else if ([command isEqualToString:@"bigl"] || [command isEqualToString:@"Bigl"]
+               || [command isEqualToString:@"biggl"] || [command isEqualToString:@"Biggl"]) {
+        NSString* delim = [self readDelimiter];
+        if (!delim) {
+            NSString* errorMessage = [NSString stringWithFormat:@"Missing delimiter for \\%@", command];
+            [self setError:MTParseErrorMissingDelimiter message:errorMessage];
+            return nil;
+        }
+        MTMathAtom* boundary = [MTMathAtomFactory boundaryAtomForDelimiterName:delim];
+        NSString* nucleus = boundary ? boundary.nucleus : delim;
+        return [MTMathAtom atomWithType:kMTMathAtomOpen value:nucleus];
+    } else if ([command isEqualToString:@"bigr"] || [command isEqualToString:@"Bigr"]
+               || [command isEqualToString:@"biggr"] || [command isEqualToString:@"Biggr"]) {
+        NSString* delim = [self readDelimiter];
+        if (!delim) {
+            NSString* errorMessage = [NSString stringWithFormat:@"Missing delimiter for \\%@", command];
+            [self setError:MTParseErrorMissingDelimiter message:errorMessage];
+            return nil;
+        }
+        MTMathAtom* boundary = [MTMathAtomFactory boundaryAtomForDelimiterName:delim];
+        NSString* nucleus = boundary ? boundary.nucleus : delim;
+        return [MTMathAtom atomWithType:kMTMathAtomClose value:nucleus];
+    } else if ([command isEqualToString:@"bigm"] || [command isEqualToString:@"Bigm"]
+               || [command isEqualToString:@"biggm"] || [command isEqualToString:@"Biggm"]) {
+        NSString* delim = [self readDelimiter];
+        if (!delim) {
+            NSString* errorMessage = [NSString stringWithFormat:@"Missing delimiter for \\%@", command];
+            [self setError:MTParseErrorMissingDelimiter message:errorMessage];
+            return nil;
+        }
+        MTMathAtom* boundary = [MTMathAtomFactory boundaryAtomForDelimiterName:delim];
+        NSString* nucleus = boundary ? boundary.nucleus : delim;
+        return [MTMathAtom atomWithType:kMTMathAtomRelation value:nucleus];
+    } else if ([command isEqualToString:@"operatorname"] || [command isEqualToString:@"operatorname*"]) {
+        BOOL limits = [command isEqualToString:@"operatorname*"];
+        // If the * variant wasn't matched as a single command, check for trailing *
+        if (!limits && [self hasCharacters]) {
+            unichar next = [self getNextCharacter];
+            if (next == '*') {
+                limits = YES;
+            } else {
+                [self unlookCharacter];
+            }
+        }
+        NSString* operatorName = [self readOperatorName];
+        if (!operatorName) {
+            NSString* errorMessage = @"Missing argument for \\operatorname";
+            [self setError:MTParseErrorCharacterNotFound message:errorMessage];
+            return nil;
+        }
+        return [MTMathAtomFactory operatorWithName:operatorName limits:limits];
     } else {
         NSString* errorMessage = [NSString stringWithFormat:@"Invalid command \\%@", command];
         [self setError:MTParseErrorInvalidCommand message:errorMessage];

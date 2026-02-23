@@ -60,6 +60,10 @@ static NSString* typeToText(MTMathAtomType type) {
             return @"Overline";
         case kMTMathAtomAccent:
             return @"Accent";
+        case kMTMathAtomPhantom:
+            return @"Phantom";
+        case kMTMathAtomBoxed:
+            return @"Boxed";
         case kMTMathAtomBoundary:
             return @"Boundary";
         case kMTMathAtomSpace:
@@ -115,7 +119,13 @@ static NSString* typeToText(MTMathAtomType type) {
             
         case kMTMathAtomAccent:
             return [[MTAccent alloc] initWithValue:value];
-            
+
+        case kMTMathAtomPhantom:
+            return [[MTPhantom alloc] init];
+
+        case kMTMathAtomBoxed:
+            return [[MTBoxed alloc] init];
+
         case kMTMathAtomSpace:
             return [[MTMathSpace alloc] initWithSpace:0];
         
@@ -553,6 +563,87 @@ static NSString* typeToText(MTMathAtomType type) {
     MTUnderLine* newUnderline = [super finalized];
     newUnderline.innerList = newUnderline.innerList.finalized;
     return newUnderline;
+}
+
+@end
+
+#pragma mark - MTPhantom
+
+@implementation MTPhantom
+
+- (instancetype)init
+{
+    return [self initWithPhantomType:kMTPhantomFull];
+}
+
+- (instancetype)initWithPhantomType:(MTPhantomType)phantomType
+{
+    self = [super initWithType:kMTMathAtomPhantom value:@""];
+    if (self) {
+        _phantomType = phantomType;
+    }
+    return self;
+}
+
+- (instancetype)initWithType:(MTMathAtomType)type value:(NSString *)value
+{
+    if (type == kMTMathAtomPhantom) {
+        return [self init];
+    }
+    @throw [NSException exceptionWithName:@"InvalidMethod"
+                                   reason:@"[MTPhantom initWithType:value:] cannot be called. Use [MTPhantom initWithPhantomType:] instead."
+                                 userInfo:nil];
+}
+
+- (id)copyWithZone:(NSZone *)zone
+{
+    MTPhantom *copy = [super copyWithZone:zone];
+    copy.innerList = [self.innerList copyWithZone:zone];
+    copy->_phantomType = self.phantomType;
+    return copy;
+}
+
+- (instancetype)finalized
+{
+    MTPhantom *newPhantom = [super finalized];
+    newPhantom.innerList = newPhantom.innerList.finalized;
+    return newPhantom;
+}
+
+@end
+
+#pragma mark - MTBoxed
+
+@implementation MTBoxed
+
+- (instancetype)init
+{
+    self = [super initWithType:kMTMathAtomBoxed value:@""];
+    return self;
+}
+
+- (instancetype)initWithType:(MTMathAtomType)type value:(NSString *)value
+{
+    if (type == kMTMathAtomBoxed) {
+        return [self init];
+    }
+    @throw [NSException exceptionWithName:@"InvalidMethod"
+                                   reason:@"[MTBoxed initWithType:value:] cannot be called. Use [MTBoxed init] instead."
+                                 userInfo:nil];
+}
+
+- (id)copyWithZone:(NSZone *)zone
+{
+    MTBoxed *copy = [super copyWithZone:zone];
+    copy.innerList = [self.innerList copyWithZone:zone];
+    return copy;
+}
+
+- (instancetype)finalized
+{
+    MTBoxed *newBoxed = [super finalized];
+    newBoxed.innerList = newBoxed.innerList.finalized;
+    return newBoxed;
 }
 
 @end

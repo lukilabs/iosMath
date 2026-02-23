@@ -52,3 +52,9 @@ Carthage/Build
 
 fastlane/report.xml
 fastlane/screenshots
+
+# Progress tracking (lives in main app repo)
+PROGRESS.md
+
+# SPM build artifacts
+.build/

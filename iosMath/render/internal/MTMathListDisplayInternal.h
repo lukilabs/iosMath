@@ -111,3 +111,20 @@
 - (instancetype)initWithAccent:(MTGlyphDisplay*) glyph accentee:(MTMathListDisplay*) accentee range:(NSRange) range NS_DESIGNATED_INITIALIZER;
 
 @end
+
+@interface MTPhantomDisplay ()
+
+- (instancetype)initWithInner:(MTMathListDisplay*) inner phantomType:(MTPhantomType) phantomType position:(CGPoint) position range:(NSRange) range NS_DESIGNATED_INITIALIZER;
+
+@end
+
+@interface MTBoxedDisplay ()
+
+- (instancetype)initWithInner:(MTMathListDisplay*) inner position:(CGPoint) position range:(NSRange) range NS_DESIGNATED_INITIALIZER;
+
+/// Padding around the inner content inside the box
+@property (nonatomic) CGFloat padding;
+/// Thickness of the box border line
+@property (nonatomic) CGFloat lineThickness;
+
+@end

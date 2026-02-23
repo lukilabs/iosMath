@@ -58,7 +58,11 @@ typedef NS_ENUM(NSUInteger, MTMathAtomType)
     kMTMathAtomOverline,
     /// An accented atom - Accent in TeX
     kMTMathAtomAccent,
-    
+    /// A phantom atom - renders invisible but takes space
+    kMTMathAtomPhantom,
+    /// A boxed atom - renders content with a rectangular border
+    kMTMathAtomBoxed,
+
     // Atoms after this point do not support subscripts or superscripts
     
     /// A left atom - Left & Right in TeX. We don't need two since we track boundaries separately.
@@ -272,6 +276,54 @@ typedef NS_ENUM(NSUInteger, MTFontStyle)
 - (instancetype)initWithValue:(NSString*) value NS_DESIGNATED_INITIALIZER;
 
 /// The mathlist under the accent.
+@property (nonatomic, nullable) MTMathList* innerList;
+
+@end
+
+/**
+ @typedef MTPhantomType
+ @brief The type of phantom rendering.
+ */
+typedef NS_ENUM(NSUInteger, MTPhantomType)
+{
+    /// Full phantom — invisible, takes full width+height
+    kMTPhantomFull,
+    /// Horizontal phantom — invisible, takes width only (zero height)
+    kMTPhantomHorizontal,
+    /// Vertical phantom — invisible, takes height only (zero width)
+    kMTPhantomVertical,
+    /// Smash top — visible, zeroes ascent
+    kMTPhantomSmashTop,
+    /// Smash bottom — visible, zeroes descent
+    kMTPhantomSmashBottom,
+    /// Smash both — visible, zeroes ascent and descent
+    kMTPhantomSmashBoth,
+};
+
+/** An atom representing a phantom or smash. */
+@interface MTPhantom : MTMathAtom
+
+/// Creates an empty phantom with full type.
+- (instancetype)init;
+
+/// Creates a phantom with the given type.
+- (instancetype)initWithPhantomType:(MTPhantomType) phantomType NS_DESIGNATED_INITIALIZER;
+
+/// The inner math list
+@property (nonatomic, nullable) MTMathList* innerList;
+
+/// The type of phantom
+@property (nonatomic, readonly) MTPhantomType phantomType;
+
+@end
+
+/** An atom representing boxed content. */
+@interface MTBoxed : MTMathAtom
+
+/// Creates an empty boxed atom.
+- (instancetype)init NS_DESIGNATED_INITIALIZER;
+
+/// The inner math list
 @property (nonatomic, nullable) MTMathList* innerList;
 
 @end
