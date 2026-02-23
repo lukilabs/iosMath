@@ -247,6 +247,9 @@ typedef NS_ENUM(NSUInteger, MTFontStyle)
 @property (nonatomic, nullable) MTMathAtom* leftBoundary;
 /// The right boundary atom. This must be a node of type kMTMathAtomBoundary
 @property (nonatomic, nullable) MTMathAtom* rightBoundary;
+/// If YES, super/subscripts are placed above/below (like large operator limits)
+/// instead of to the right. Used by \overset, \underset, \stackrel.
+@property (nonatomic) BOOL limits;
 
 @end
 

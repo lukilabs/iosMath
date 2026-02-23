@@ -146,6 +146,8 @@
 @property (nonatomic) CGFloat lineThickness;
 /// Gap between the arrow and the labels
 @property (nonatomic) CGFloat labelGap;
+/// Vertical offset to center the arrow on the math axis
+@property (nonatomic) CGFloat axisOffset;
 
 @end
 

@@ -658,6 +658,7 @@ NSString *const MTParseError = @"ParseError";
         MTInner* inner = [MTInner new];
         inner.innerList = base;
         inner.superScript = top;
+        inner.limits = YES;
         return inner;
     } else if ([command isEqualToString:@"underset"]) {
         // \underset{bottom}{base}
@@ -666,6 +667,7 @@ NSString *const MTParseError = @"ParseError";
         MTInner* inner = [MTInner new];
         inner.innerList = base;
         inner.subScript = bottom;
+        inner.limits = YES;
         return inner;
     } else if ([command isEqualToString:@"dfrac"]) {
         MTFraction* frac = [MTFraction new];

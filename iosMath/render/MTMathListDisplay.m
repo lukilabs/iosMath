@@ -993,6 +993,18 @@ static BOOL isIos6Supported() {
     _belowDisplay.textColor = textColor;
 }
 
+- (void)setLabelGap:(CGFloat)labelGap
+{
+    _labelGap = labelGap;
+    [self updateLabelPositions];
+}
+
+- (void)setAxisOffset:(CGFloat)axisOffset
+{
+    _axisOffset = axisOffset;
+    [self updateLabelPositions];
+}
+
 static void drawArrowHead(CGContextRef context, CGPoint tip, CGFloat size, BOOL pointsRight, BOOL isDouble) {
     CGFloat angle = M_PI / 6.0;  // 30 degrees
     CGFloat dx = size * cos(angle);
@@ -1043,7 +1055,7 @@ static void drawHookEnd(CGContextRef context, CGPoint point, CGFloat radius, BOO
     CGContextSetLineJoin(context, kCGLineJoinRound);
 
     CGFloat x = self.position.x;
-    CGFloat arrowY = self.position.y;
+    CGFloat arrowY = self.position.y + self.axisOffset;
     CGFloat arrowEnd = x + _arrowLength;
     CGFloat headSize = 5.0 * self.lineThickness;
 
@@ -1150,7 +1162,7 @@ static void drawHookEnd(CGContextRef context, CGPoint point, CGFloat radius, BOO
 - (void)updateLabelPositions
 {
     CGFloat x = self.position.x;
-    CGFloat arrowY = self.position.y;
+    CGFloat arrowY = self.position.y + self.axisOffset;
 
     if (self.aboveDisplay) {
         CGFloat aboveX = x + (_arrowLength - self.aboveDisplay.width) / 2.0;

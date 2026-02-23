@@ -702,11 +702,33 @@ static void getBboxDetails(CGRect bbox, CGFloat* ascent, CGFloat* descent)
                     display = [MTTypesetter createLineForMathList:inner.innerList font:_font style:_style cramped:_cramped];
                 }
                 display.position = _currentPosition;
-                _currentPosition.x += display.width;
-                [_displayAtoms addObject:display];
-                // add super scripts || subscripts
-                if (atom.subScript || atom.superScript) {
-                    [self makeScripts:atom display:display index:atom.indexRange.location delta:0];
+
+                // Limits-style placement (overset/underset/stackrel)
+                if (inner.limits && (atom.subScript || atom.superScript)) {
+                    MTMathListDisplay *superScript = nil, *subScript = nil;
+                    if (atom.superScript) {
+                        superScript = [MTTypesetter createLineForMathList:atom.superScript font:_font style:self.scriptStyle cramped:self.superScriptCramped];
+                    }
+                    if (atom.subScript) {
+                        subScript = [MTTypesetter createLineForMathList:atom.subScript font:_font style:self.scriptStyle cramped:self.subscriptCramped];
+                    }
+                    MTLargeOpLimitsDisplay* limitsDisplay = [[MTLargeOpLimitsDisplay alloc] initWithNucleus:display upperLimit:superScript lowerLimit:subScript limitShift:0 extraPadding:0];
+                    if (superScript) {
+                        limitsDisplay.upperLimitGap = MAX(_styleFont.mathTable.upperLimitGapMin, _styleFont.mathTable.upperLimitBaselineRiseMin - superScript.descent);
+                    }
+                    if (subScript) {
+                        limitsDisplay.lowerLimitGap = MAX(_styleFont.mathTable.lowerLimitGapMin, _styleFont.mathTable.lowerLimitBaselineDropMin - subScript.ascent);
+                    }
+                    limitsDisplay.position = _currentPosition;
+                    limitsDisplay.range = atom.indexRange;
+                    [_displayAtoms addObject:limitsDisplay];
+                    _currentPosition.x += limitsDisplay.width;
+                } else {
+                    _currentPosition.x += display.width;
+                    [_displayAtoms addObject:display];
+                    if (atom.subScript || atom.superScript) {
+                        [self makeScripts:atom display:display index:atom.indexRange.location delta:0];
+                    }
                 }
                 break;
             }
@@ -762,12 +784,34 @@ static void getBboxDetails(CGRect bbox, CGFloat* ascent, CGFloat* descent)
                 
                 MTAccent* accent = (MTAccent*) atom;
                 MTDisplay* display = [self makeAccent:accent];
-                [_displayAtoms addObject:display];
-                _currentPosition.x += display.width;
-                
-                // add super scripts || subscripts
-                if (atom.subScript || atom.superScript) {
-                    [self makeScripts:atom display:display index:atom.indexRange.location delta:0];
+
+                // Overbrace/underbrace place scripts as limits (above/below)
+                BOOL isOverUnderBrace = [accent.nucleus isEqualToString:@"\u23DE"] || [accent.nucleus isEqualToString:@"\u23DF"];
+                if (isOverUnderBrace && (atom.subScript || atom.superScript)) {
+                    MTMathListDisplay *superScript = nil, *subScript = nil;
+                    if (atom.superScript) {
+                        superScript = [MTTypesetter createLineForMathList:atom.superScript font:_font style:self.scriptStyle cramped:self.superScriptCramped];
+                    }
+                    if (atom.subScript) {
+                        subScript = [MTTypesetter createLineForMathList:atom.subScript font:_font style:self.scriptStyle cramped:self.subscriptCramped];
+                    }
+                    MTLargeOpLimitsDisplay* limitsDisplay = [[MTLargeOpLimitsDisplay alloc] initWithNucleus:display upperLimit:superScript lowerLimit:subScript limitShift:0 extraPadding:0];
+                    if (superScript) {
+                        limitsDisplay.upperLimitGap = MAX(_styleFont.mathTable.upperLimitGapMin, _styleFont.mathTable.upperLimitBaselineRiseMin - superScript.descent);
+                    }
+                    if (subScript) {
+                        limitsDisplay.lowerLimitGap = MAX(_styleFont.mathTable.lowerLimitGapMin, _styleFont.mathTable.lowerLimitBaselineDropMin - subScript.ascent);
+                    }
+                    limitsDisplay.position = _currentPosition;
+                    limitsDisplay.range = atom.indexRange;
+                    [_displayAtoms addObject:limitsDisplay];
+                    _currentPosition.x += limitsDisplay.width;
+                } else {
+                    [_displayAtoms addObject:display];
+                    _currentPosition.x += display.width;
+                    if (atom.subScript || atom.superScript) {
+                        [self makeScripts:atom display:display index:atom.indexRange.location delta:0];
+                    }
                 }
                 break;
             }
@@ -1748,7 +1792,7 @@ static const NSInteger kDelimiterShortfallPoints = 5;
 - (MTDisplay*) makeBoxed:(MTBoxed*) boxed
 {
     MTMathListDisplay* innerListDisplay = [MTTypesetter createLineForMathList:boxed.innerList font:_font style:_style cramped:_cramped];
-    CGFloat padding = _styleFont.mathTable.fractionNumeratorGapMin;  // Reuse a small gap metric as padding
+    CGFloat padding = _styleFont.fontSize * 0.15;
     MTBoxedDisplay* boxedDisplay = [[MTBoxedDisplay alloc] initWithInner:innerListDisplay position:_currentPosition range:boxed.indexRange];
     boxedDisplay.padding = padding;
     boxedDisplay.lineThickness = _styleFont.mathTable.fractionRuleThickness;
@@ -1781,19 +1825,21 @@ static const NSInteger kDelimiterShortfallPoints = 5;
 
     MTExtensibleArrowDisplay* display = [[MTExtensibleArrowDisplay alloc] initWithAbove:aboveDisplay below:belowDisplay arrowType:arrow.arrowType arrowLength:arrowLength position:_currentPosition range:arrow.indexRange];
     display.lineThickness = _styleFont.mathTable.fractionRuleThickness;
-    display.labelGap = _styleFont.mathTable.fractionRuleThickness * 2;
+    display.labelGap = _styleFont.fontSize * 0.15;
+    display.axisOffset = _styleFont.mathTable.axisHeight;
 
-    // Calculate dimensions
-    CGFloat ascent = display.lineThickness;
-    CGFloat descent = display.lineThickness;
+    // Calculate dimensions relative to axis position
+    CGFloat axisHeight = display.axisOffset;
+    CGFloat ascent = axisHeight + display.lineThickness;
+    CGFloat descent = display.lineThickness - axisHeight;  // axisHeight is above baseline, so descent is reduced
     if (aboveDisplay) {
-        ascent = display.labelGap + aboveDisplay.ascent + aboveDisplay.descent;
+        ascent = axisHeight + display.labelGap + aboveDisplay.ascent + aboveDisplay.descent;
     }
     if (belowDisplay) {
-        descent = display.labelGap + belowDisplay.ascent + belowDisplay.descent;
+        descent = -axisHeight + display.labelGap + belowDisplay.ascent + belowDisplay.descent;
     }
-    display.ascent = ascent;
-    display.descent = descent;
+    display.ascent = MAX(ascent, 0);
+    display.descent = MAX(descent, 0);
     display.width = arrowLength;
     return display;
 }
@@ -1909,6 +1955,16 @@ static const NSInteger kDelimiterShortfallPoints = 5;
     
     CGFloat skew = [self getSkew:accent accenteeWidth:accenteeWidth accentGlyph:accentGlyph];
     CGFloat height = accentee.ascent - delta;  // This is always positive since delta <= height.
+    // Overbrace/underbrace need special positioning instead of standard accent overlap
+    BOOL isOverbrace = [accent.nucleus isEqualToString:@"\u23DE"];
+    BOOL isUnderbrace = [accent.nucleus isEqualToString:@"\u23DF"];
+    if (isOverbrace) {
+        // Position brace above: clear the content top + gap
+        height = accentee.ascent + glyphDescent + _styleFont.fontSize * 0.1;
+    } else if (isUnderbrace) {
+        // Position brace below: negative y in y-up coordinate system
+        height = -(accentee.descent + glyphAscent + _styleFont.fontSize * 0.1);
+    }
     CGPoint accentPosition = CGPointMake(skew, height);
     MTGlyphDisplay* accentGlyphDisplay = [[MTGlyphDisplay alloc] initWithGlpyh:accentGlyph range:accent.indexRange font:_styleFont];
     accentGlyphDisplay.ascent = glyphAscent;
@@ -1931,11 +1987,20 @@ static const NSInteger kDelimiterShortfallPoints = 5;
     
     MTAccentDisplay* display = [[MTAccentDisplay alloc] initWithAccent:accentGlyphDisplay accentee:accentee range:accent.indexRange];
     display.width = accentee.width;
-    display.descent = accentee.descent;
-    CGFloat ascent = accentee.ascent - delta + glyphAscent;
-    display.ascent = MAX(accentee.ascent, ascent);
+    if (isOverbrace) {
+        display.descent = accentee.descent;
+        display.ascent = MAX(accentee.ascent, height + glyphAscent);
+    } else if (isUnderbrace) {
+        display.ascent = accentee.ascent;
+        // height is negative; brace bottom extends to |height| + glyphDescent below baseline
+        display.descent = MAX(accentee.descent, -height + glyphDescent);
+    } else {
+        display.descent = accentee.descent;
+        CGFloat ascent = accentee.ascent - delta + glyphAscent;
+        display.ascent = MAX(accentee.ascent, ascent);
+    }
     display.position = _currentPosition;
-    
+
     return display;
 }
 
