@@ -1953,23 +1953,52 @@ static const CGFloat kJotMultiplier = 0.3; // A jot is 3pt for a 10pt font.
         // Empty table
         return [[MTMathListDisplay alloc] initWithDisplays:[NSArray array] range:table.indexRange];
     }
-    
+
     CGFloat columnWidths[numColumns];
     for (int i = 0; i < numColumns; i++) {
         columnWidths[i] = 0;
     }
     NSArray<NSArray<MTDisplay*>*>* displays = [self typesetCells:table columnWidths:columnWidths];
-    
+
     // Position all the columns in each row
     NSMutableArray<MTDisplay*>* rowDisplays = [NSMutableArray arrayWithCapacity:table.cells.count];
     for (NSArray<MTDisplay*>* row in displays) {
         MTMathListDisplay* rowDisplay = [self makeRowWithColumns:row forTable:table columnWidths:columnWidths];
         [rowDisplays addObject:rowDisplay];
     }
-    
+
     // Position all the rows
     [self positionRows:rowDisplays forTable:table];
-    MTMathListDisplay* tableDisplay = [[MTMathListDisplay alloc] initWithDisplays:rowDisplays range:table.indexRange];
+
+    // Compute vertical line X positions from the column geometry
+    NSMutableArray<NSNumber*>* verticalLineXPositions = [NSMutableArray array];
+    if (table.verticalLines.count > 0) {
+        CGFloat spacing = table.interColumnSpacing * _styleFont.mathTable.muUnit;
+        // Precompute column start X positions
+        CGFloat colStartX[numColumns + 1];
+        colStartX[0] = 0;
+        for (NSUInteger i = 1; i <= numColumns; i++) {
+            colStartX[i] = colStartX[i - 1] + columnWidths[i - 1] + spacing;
+        }
+
+        for (NSNumber* pos in table.verticalLines) {
+            NSInteger c = [pos integerValue];
+            CGFloat x;
+            if (c <= 0) {
+                // Before first column
+                x = -spacing / 2.0;
+            } else if (c >= (NSInteger)numColumns) {
+                // After last column
+                x = colStartX[numColumns - 1] + columnWidths[numColumns - 1] + spacing / 2.0;
+            } else {
+                // Between columns: midpoint of the inter-column gap
+                x = colStartX[c] - spacing / 2.0;
+            }
+            [verticalLineXPositions addObject:@(x)];
+        }
+    }
+
+    MTTableDisplay* tableDisplay = [[MTTableDisplay alloc] initWithDisplays:rowDisplays verticalLines:verticalLineXPositions range:table.indexRange];
     tableDisplay.position = _currentPosition;
     return tableDisplay;
 }

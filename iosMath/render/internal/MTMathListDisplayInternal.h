@@ -148,3 +148,12 @@
 @property (nonatomic) CGFloat labelGap;
 
 @end
+
+@interface MTTableDisplay ()
+
+- (instancetype)initWithDisplays:(NSArray<MTDisplay*>*) displays verticalLines:(NSArray<NSNumber*>*) verticalLineXPositions range:(NSRange) range NS_DESIGNATED_INITIALIZER;
+
+/// Thickness of the vertical separator lines
+@property (nonatomic) CGFloat lineThickness;
+
+@end

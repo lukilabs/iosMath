@@ -1163,3 +1163,53 @@ static void drawHookEnd(CGContextRef context, CGPoint point, CGFloat radius, BOO
 }
 
 @end
+
+#pragma mark - MTTableDisplay
+
+@implementation MTTableDisplay
+
+- (instancetype)initWithDisplays:(NSArray<MTDisplay*>*)displays verticalLines:(NSArray<NSNumber*>*)verticalLineXPositions range:(NSRange)range
+{
+    self = [super initWithDisplays:displays range:range];
+    if (self) {
+        _verticalLineXPositions = [verticalLineXPositions copy];
+        _lineThickness = 0.5;
+    }
+    return self;
+}
+
+- (void)draw:(CGContextRef)context
+{
+    // Draw all the row content first
+    [super draw:context];
+
+    if (self.verticalLineXPositions.count == 0) {
+        return;
+    }
+
+    CGContextSaveGState(context);
+    CGContextTranslateCTM(context, self.position.x, self.position.y);
+
+    // Use text color for the lines
+    if (self.textColor) {
+        [self.textColor setStroke];
+    } else {
+        [[MTColor blackColor] setStroke];
+    }
+
+    CGFloat top = self.ascent;
+    CGFloat bottom = -self.descent;
+
+    for (NSNumber* xPos in self.verticalLineXPositions) {
+        CGFloat x = [xPos doubleValue];
+        MTBezierPath* path = [MTBezierPath bezierPath];
+        [path moveToPoint:CGPointMake(x, bottom)];
+        [path addLineToPoint:CGPointMake(x, top)];
+        path.lineWidth = self.lineThickness;
+        [path stroke];
+    }
+
+    CGContextRestoreGState(context);
+}
+
+@end
