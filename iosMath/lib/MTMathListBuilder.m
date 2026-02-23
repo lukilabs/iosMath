@@ -414,7 +414,16 @@ NSString *const MTParseError = @"ParseError";
     // Ignore spaces and nonascii.
     [self skipSpaces];
     NSString* env = [self readString];
-    
+    // Accept trailing * for starred environments (e.g. align*)
+    if ([self hasCharacters]) {
+        unichar next = [self getNextCharacter];
+        if (next == '*') {
+            env = [env stringByAppendingString:@"*"];
+        } else {
+            [self unlookCharacter];
+        }
+    }
+
     if (![self expectCharacter:'}']) {
         // We didn't find an closing brace, so invalid format.
         [self setError:MTParseErrorCharacterNotFound message:@"Missing }"];
@@ -512,7 +521,27 @@ NSString *const MTParseError = @"ParseError";
         if (!env) {
             return nil;
         }
+        // For array environment, read column specifier {lcr|...}
+        NSArray<NSNumber*>* columnAlignments = nil;
+        NSArray<NSNumber*>* verticalLinePositions = nil;
+        if ([env isEqualToString:@"array"]) {
+            [self readArrayColumnSpec:&columnAlignments verticalLines:&verticalLinePositions];
+        }
         MTMathAtom* table = [self buildTable:env firstList:nil row:NO];
+        // Apply column spec to array table
+        if ([env isEqualToString:@"array"] && table && [table isKindOfClass:[MTMathTable class]]) {
+            MTMathTable* mathTable = (MTMathTable*)table;
+            if (columnAlignments) {
+                for (NSInteger i = 0; i < columnAlignments.count; i++) {
+                    [mathTable setAlignment:(MTColumnAlignment)[columnAlignments[i] integerValue] forColumn:i];
+                }
+            }
+            if (verticalLinePositions) {
+                for (NSNumber* pos in verticalLinePositions) {
+                    [mathTable addVerticalLineAtColumn:pos.integerValue];
+                }
+            }
+        }
         return table;
     } else if ([command isEqualToString:@"color"]) {
         // A color command has 2 arguments
@@ -739,6 +768,8 @@ NSString *const MTParseError = @"ParseError";
         MTMathAtom* boundary = [MTMathAtomFactory boundaryAtomForDelimiterName:delim];
         NSString* nucleus = boundary ? boundary.nucleus : delim;
         return [MTMathAtom atomWithType:kMTMathAtomRelation value:nucleus];
+    } else if ([command hasPrefix:@"x"] && [self isExtensibleArrowCommand:command]) {
+        return [self buildExtensibleArrow:command];
     } else if ([command isEqualToString:@"operatorname"] || [command isEqualToString:@"operatorname*"]) {
         BOOL limits = [command isEqualToString:@"operatorname*"];
         // If the * variant wasn't matched as a single command, check for trailing *
@@ -863,6 +894,100 @@ NSString *const MTParseError = @"ParseError";
         return true;
     }
     return false;
+}
+
+- (void) readArrayColumnSpec:(NSArray<NSNumber*>**)alignments verticalLines:(NSArray<NSNumber*>**)vLines
+{
+    [self skipSpaces];
+    if (![self hasCharacters]) return;
+
+    unichar next = [self getNextCharacter];
+    if (next != '{') {
+        [self unlookCharacter];
+        return;
+    }
+
+    NSMutableArray<NSNumber*>* aligns = [NSMutableArray array];
+    NSMutableArray<NSNumber*>* lines = [NSMutableArray array];
+    NSInteger colIndex = 0;
+
+    while ([self hasCharacters]) {
+        unichar ch = [self getNextCharacter];
+        if (ch == '}') break;
+        if (ch == 'l') {
+            [aligns addObject:@(kMTColumnAlignmentLeft)];
+            colIndex++;
+        } else if (ch == 'c') {
+            [aligns addObject:@(kMTColumnAlignmentCenter)];
+            colIndex++;
+        } else if (ch == 'r') {
+            [aligns addObject:@(kMTColumnAlignmentRight)];
+            colIndex++;
+        } else if (ch == '|') {
+            [lines addObject:@(colIndex)];
+        }
+        // Ignore other characters (spaces, etc.)
+    }
+
+    if (alignments) *alignments = aligns;
+    if (vLines) *vLines = lines;
+}
+
+- (BOOL) isExtensibleArrowCommand:(NSString*) command
+{
+    static NSSet* arrowCommands = nil;
+    if (!arrowCommands) {
+        arrowCommands = [NSSet setWithArray:@[
+            @"xrightarrow", @"xleftarrow", @"xleftrightarrow",
+            @"xRightarrow", @"xLeftarrow", @"xLeftrightarrow",
+            @"xhookrightarrow", @"xhookleftarrow", @"xmapsto",
+            @"xlongequal", @"xtwoheadrightarrow", @"xtwoheadleftarrow",
+            @"xrightharpoonup", @"xrightharpoondown",
+            @"xleftharpoonup", @"xleftharpoondown",
+        ]];
+    }
+    return [arrowCommands containsObject:command];
+}
+
+- (MTMathAtom*) buildExtensibleArrow:(NSString*) command
+{
+    static NSDictionary<NSString*, NSNumber*>* arrowTypes = nil;
+    if (!arrowTypes) {
+        arrowTypes = @{
+            @"xrightarrow" : @(kMTExtensibleArrowRight),
+            @"xleftarrow" : @(kMTExtensibleArrowLeft),
+            @"xleftrightarrow" : @(kMTExtensibleArrowLeftRight),
+            @"xRightarrow" : @(kMTExtensibleArrowDoubleRight),
+            @"xLeftarrow" : @(kMTExtensibleArrowDoubleLeft),
+            @"xLeftrightarrow" : @(kMTExtensibleArrowDoubleLeftRight),
+            @"xhookrightarrow" : @(kMTExtensibleArrowHookRight),
+            @"xhookleftarrow" : @(kMTExtensibleArrowHookLeft),
+            @"xmapsto" : @(kMTExtensibleArrowMapsTo),
+            @"xlongequal" : @(kMTExtensibleArrowLongEqual),
+            @"xtwoheadrightarrow" : @(kMTExtensibleArrowTwoHeadRight),
+            @"xtwoheadleftarrow" : @(kMTExtensibleArrowTwoHeadLeft),
+            @"xrightharpoonup" : @(kMTExtensibleArrowRightHarpoonUp),
+            @"xrightharpoondown" : @(kMTExtensibleArrowRightHarpoonDown),
+            @"xleftharpoonup" : @(kMTExtensibleArrowLeftHarpoonUp),
+            @"xleftharpoondown" : @(kMTExtensibleArrowLeftHarpoonDown),
+        };
+    }
+    MTExtensibleArrowType arrowType = (MTExtensibleArrowType)[arrowTypes[command] unsignedIntegerValue];
+    MTExtensibleArrow* arrow = [[MTExtensibleArrow alloc] initWithArrowType:arrowType];
+
+    // Read optional [below] argument
+    if ([self hasCharacters]) {
+        unichar next = [self getNextCharacter];
+        if (next == '[') {
+            arrow.belowList = [self buildInternal:NO stopChar:']'];
+        } else {
+            [self unlookCharacter];
+        }
+    }
+
+    // Read required {above} argument
+    arrow.aboveList = [self buildInternal:true];
+    return arrow;
 }
 
 - (void) setError:(MTParseErrors) code message:(NSString*) message

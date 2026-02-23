@@ -64,6 +64,8 @@ typedef NS_ENUM(NSUInteger, MTMathAtomType)
     kMTMathAtomBoxed,
     /// A cancel atom - renders content with a strikethrough line
     kMTMathAtomCancel,
+    /// An extensible arrow atom - renders a stretchy arrow with optional labels
+    kMTMathAtomExtensibleArrow,
 
     // Atoms after this point do not support subscripts or superscripts
     
@@ -369,6 +371,66 @@ typedef NS_ENUM(NSUInteger, MTCancelType)
 
 @end
 
+/**
+ @typedef MTExtensibleArrowType
+ @brief The type of extensible arrow.
+ */
+typedef NS_ENUM(NSUInteger, MTExtensibleArrowType)
+{
+    /// Right arrow → (\xrightarrow)
+    kMTExtensibleArrowRight,
+    /// Left arrow ← (\xleftarrow)
+    kMTExtensibleArrowLeft,
+    /// Left-right arrow ↔ (\xleftrightarrow)
+    kMTExtensibleArrowLeftRight,
+    /// Double right arrow ⇒ (\xRightarrow)
+    kMTExtensibleArrowDoubleRight,
+    /// Double left arrow ⇐ (\xLeftarrow)
+    kMTExtensibleArrowDoubleLeft,
+    /// Double left-right arrow ⇔ (\xLeftrightarrow)
+    kMTExtensibleArrowDoubleLeftRight,
+    /// Hooked right arrow ↪ (\xhookrightarrow)
+    kMTExtensibleArrowHookRight,
+    /// Hooked left arrow ↩ (\xhookleftarrow)
+    kMTExtensibleArrowHookLeft,
+    /// Maps-to arrow ↦ (\xmapsto)
+    kMTExtensibleArrowMapsTo,
+    /// Extensible equal sign (\xlongequal)
+    kMTExtensibleArrowLongEqual,
+    /// Two-headed right arrow ↠ (\xtwoheadrightarrow)
+    kMTExtensibleArrowTwoHeadRight,
+    /// Two-headed left arrow ↞ (\xtwoheadleftarrow)
+    kMTExtensibleArrowTwoHeadLeft,
+    /// Right harpoon up ⇀ (\xrightharpoonup)
+    kMTExtensibleArrowRightHarpoonUp,
+    /// Right harpoon down ⇁ (\xrightharpoondown)
+    kMTExtensibleArrowRightHarpoonDown,
+    /// Left harpoon up ↼ (\xleftharpoonup)
+    kMTExtensibleArrowLeftHarpoonUp,
+    /// Left harpoon down ↽ (\xleftharpoondown)
+    kMTExtensibleArrowLeftHarpoonDown,
+};
+
+/** An atom representing an extensible arrow with optional above/below labels. */
+@interface MTExtensibleArrow : MTMathAtom
+
+/// Creates an extensible right arrow.
+- (instancetype)init;
+
+/// Creates an extensible arrow with the given type.
+- (instancetype)initWithArrowType:(MTExtensibleArrowType) arrowType NS_DESIGNATED_INITIALIZER;
+
+/// The math list displayed above the arrow.
+@property (nonatomic, nullable) MTMathList* aboveList;
+
+/// The math list displayed below the arrow.
+@property (nonatomic, nullable) MTMathList* belowList;
+
+/// The type of arrow.
+@property (nonatomic, readonly) MTExtensibleArrowType arrowType;
+
+@end
+
 /** An atom representing space.
  @note None of the usual fields of the `MTMathAtom` apply even though this
  class inherits from `MTMathAtom`. i.e. it is meaningless to have a value
@@ -478,6 +540,11 @@ typedef NS_ENUM(NSInteger, MTColumnAlignment) {
 /// If the additional spacing is 0, then normal row spacing is used are used.
 @property (nonatomic) CGFloat interRowAdditionalSpacing;
 
+/// Positions of vertical lines for the array environment.
+/// Each NSNumber is an NSInteger representing a column index (0 = before first column,
+/// numColumns = after last column) where a vertical line should be drawn.
+@property (nonatomic, nonnull, readonly) NSArray<NSNumber*>* verticalLines;
+
 /// Set the value of a given cell. The table is automatically resized to contain this cell.
 - (void) setCell:(MTMathList*) list forRow:(NSInteger) row column:(NSInteger) column;
 
@@ -494,6 +561,9 @@ typedef NS_ENUM(NSInteger, MTColumnAlignment) {
 
 /// Number of rows in the table.
 - (NSUInteger) numRows;
+
+/// Add a vertical line at the given column position (0 = before first column).
+- (void) addVerticalLineAtColumn:(NSInteger) column;
 
 @end
 

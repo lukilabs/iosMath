@@ -959,7 +959,207 @@ static BOOL isIos6Supported() {
 - (void)setPosition:(CGPoint)position
 {
     super.position = position;
-    self.inner.position = CGPointMake(position.x, position.y);
+    _inner.position = CGPointMake(position.x, position.y);
+}
+
+@end
+
+#pragma mark - MTExtensibleArrowDisplay
+
+@implementation MTExtensibleArrowDisplay {
+    CGFloat _arrowLength;
+}
+
+- (instancetype)initWithAbove:(MTMathListDisplay *)above below:(MTMathListDisplay *)below arrowType:(MTExtensibleArrowType)arrowType arrowLength:(CGFloat)arrowLength position:(CGPoint)position range:(NSRange)range
+{
+    self = [super init];
+    if (self) {
+        _aboveDisplay = above;
+        _belowDisplay = below;
+        _arrowType = arrowType;
+        _arrowLength = arrowLength;
+        _lineThickness = 1.0;
+        _labelGap = 2.0;
+        self.position = position;
+        self.range = range;
+    }
+    return self;
+}
+
+- (void)setTextColor:(MTColor *)textColor
+{
+    [super setTextColor:textColor];
+    _aboveDisplay.textColor = textColor;
+    _belowDisplay.textColor = textColor;
+}
+
+static void drawArrowHead(CGContextRef context, CGPoint tip, CGFloat size, BOOL pointsRight, BOOL isDouble) {
+    CGFloat angle = M_PI / 6.0;  // 30 degrees
+    CGFloat dx = size * cos(angle);
+    CGFloat dy = size * sin(angle);
+    if (!pointsRight) dx = -dx;
+
+    CGContextMoveToPoint(context, tip.x - dx, tip.y + dy);
+    CGContextAddLineToPoint(context, tip.x, tip.y);
+    CGContextAddLineToPoint(context, tip.x - dx, tip.y - dy);
+    CGContextStrokePath(context);
+
+    if (isDouble) {
+        CGFloat offset = pointsRight ? -size * 0.4 : size * 0.4;
+        CGPoint tip2 = CGPointMake(tip.x + offset, tip.y);
+        CGContextMoveToPoint(context, tip2.x - dx, tip2.y + dy);
+        CGContextAddLineToPoint(context, tip2.x, tip2.y);
+        CGContextAddLineToPoint(context, tip2.x - dx, tip2.y - dy);
+        CGContextStrokePath(context);
+    }
+}
+
+static void drawHookEnd(CGContextRef context, CGPoint point, CGFloat radius, BOOL isRight) {
+    CGFloat startAngle, endAngle;
+    CGPoint center;
+    if (isRight) {
+        center = CGPointMake(point.x, point.y - radius);
+        startAngle = M_PI / 2.0;
+        endAngle = -M_PI / 2.0;
+    } else {
+        center = CGPointMake(point.x, point.y - radius);
+        startAngle = -M_PI / 2.0;
+        endAngle = M_PI / 2.0;
+    }
+    CGContextAddArc(context, center.x, center.y, radius, startAngle, endAngle, isRight ? 1 : 0);
+    CGContextStrokePath(context);
+}
+
+- (void)draw:(CGContextRef)context
+{
+    [self.aboveDisplay draw:context];
+    [self.belowDisplay draw:context];
+
+    CGContextSaveGState(context);
+
+    [self.textColor setStroke];
+    CGContextSetLineWidth(context, self.lineThickness);
+    CGContextSetLineCap(context, kCGLineCapRound);
+    CGContextSetLineJoin(context, kCGLineJoinRound);
+
+    CGFloat x = self.position.x;
+    CGFloat arrowY = self.position.y;
+    CGFloat arrowEnd = x + _arrowLength;
+    CGFloat headSize = 5.0 * self.lineThickness;
+
+    BOOL isDouble = (_arrowType == kMTExtensibleArrowDoubleRight ||
+                     _arrowType == kMTExtensibleArrowDoubleLeft ||
+                     _arrowType == kMTExtensibleArrowDoubleLeftRight);
+
+    if (isDouble) {
+        CGFloat gap = 1.5 * self.lineThickness;
+        CGContextMoveToPoint(context, x, arrowY + gap);
+        CGContextAddLineToPoint(context, arrowEnd, arrowY + gap);
+        CGContextStrokePath(context);
+        CGContextMoveToPoint(context, x, arrowY - gap);
+        CGContextAddLineToPoint(context, arrowEnd, arrowY - gap);
+        CGContextStrokePath(context);
+    } else if (_arrowType == kMTExtensibleArrowLongEqual) {
+        CGFloat gap = 1.5 * self.lineThickness;
+        CGContextMoveToPoint(context, x, arrowY + gap);
+        CGContextAddLineToPoint(context, arrowEnd, arrowY + gap);
+        CGContextStrokePath(context);
+        CGContextMoveToPoint(context, x, arrowY - gap);
+        CGContextAddLineToPoint(context, arrowEnd, arrowY - gap);
+        CGContextStrokePath(context);
+    } else {
+        CGContextMoveToPoint(context, x, arrowY);
+        CGContextAddLineToPoint(context, arrowEnd, arrowY);
+        CGContextStrokePath(context);
+    }
+
+    switch (_arrowType) {
+        case kMTExtensibleArrowRight:
+            drawArrowHead(context, CGPointMake(arrowEnd, arrowY), headSize, YES, NO);
+            break;
+        case kMTExtensibleArrowLeft:
+            drawArrowHead(context, CGPointMake(x, arrowY), headSize, NO, NO);
+            break;
+        case kMTExtensibleArrowLeftRight:
+            drawArrowHead(context, CGPointMake(arrowEnd, arrowY), headSize, YES, NO);
+            drawArrowHead(context, CGPointMake(x, arrowY), headSize, NO, NO);
+            break;
+        case kMTExtensibleArrowDoubleRight:
+            drawArrowHead(context, CGPointMake(arrowEnd, arrowY), headSize, YES, NO);
+            break;
+        case kMTExtensibleArrowDoubleLeft:
+            drawArrowHead(context, CGPointMake(x, arrowY), headSize, NO, NO);
+            break;
+        case kMTExtensibleArrowDoubleLeftRight:
+            drawArrowHead(context, CGPointMake(arrowEnd, arrowY), headSize, YES, NO);
+            drawArrowHead(context, CGPointMake(x, arrowY), headSize, NO, NO);
+            break;
+        case kMTExtensibleArrowHookRight:
+            drawArrowHead(context, CGPointMake(arrowEnd, arrowY), headSize, YES, NO);
+            drawHookEnd(context, CGPointMake(x, arrowY), headSize * 0.6, NO);
+            break;
+        case kMTExtensibleArrowHookLeft:
+            drawArrowHead(context, CGPointMake(x, arrowY), headSize, NO, NO);
+            drawHookEnd(context, CGPointMake(arrowEnd, arrowY), headSize * 0.6, YES);
+            break;
+        case kMTExtensibleArrowMapsTo:
+            drawArrowHead(context, CGPointMake(arrowEnd, arrowY), headSize, YES, NO);
+            CGContextMoveToPoint(context, x, arrowY - headSize * 0.6);
+            CGContextAddLineToPoint(context, x, arrowY + headSize * 0.6);
+            CGContextStrokePath(context);
+            break;
+        case kMTExtensibleArrowLongEqual:
+            break;
+        case kMTExtensibleArrowTwoHeadRight:
+            drawArrowHead(context, CGPointMake(arrowEnd, arrowY), headSize, YES, YES);
+            break;
+        case kMTExtensibleArrowTwoHeadLeft:
+            drawArrowHead(context, CGPointMake(x, arrowY), headSize, NO, YES);
+            break;
+        case kMTExtensibleArrowRightHarpoonUp:
+            CGContextMoveToPoint(context, arrowEnd - headSize * cos(M_PI/6.0), arrowY + headSize * sin(M_PI/6.0));
+            CGContextAddLineToPoint(context, arrowEnd, arrowY);
+            CGContextStrokePath(context);
+            break;
+        case kMTExtensibleArrowRightHarpoonDown:
+            CGContextMoveToPoint(context, arrowEnd - headSize * cos(M_PI/6.0), arrowY - headSize * sin(M_PI/6.0));
+            CGContextAddLineToPoint(context, arrowEnd, arrowY);
+            CGContextStrokePath(context);
+            break;
+        case kMTExtensibleArrowLeftHarpoonUp:
+            CGContextMoveToPoint(context, x + headSize * cos(M_PI/6.0), arrowY + headSize * sin(M_PI/6.0));
+            CGContextAddLineToPoint(context, x, arrowY);
+            CGContextStrokePath(context);
+            break;
+        case kMTExtensibleArrowLeftHarpoonDown:
+            CGContextMoveToPoint(context, x + headSize * cos(M_PI/6.0), arrowY - headSize * sin(M_PI/6.0));
+            CGContextAddLineToPoint(context, x, arrowY);
+            CGContextStrokePath(context);
+            break;
+    }
+
+    CGContextRestoreGState(context);
+}
+
+- (void)setPosition:(CGPoint)position
+{
+    super.position = position;
+    [self updateLabelPositions];
+}
+
+- (void)updateLabelPositions
+{
+    CGFloat x = self.position.x;
+    CGFloat arrowY = self.position.y;
+
+    if (self.aboveDisplay) {
+        CGFloat aboveX = x + (_arrowLength - self.aboveDisplay.width) / 2.0;
+        self.aboveDisplay.position = CGPointMake(aboveX, arrowY + self.labelGap + self.aboveDisplay.descent);
+    }
+    if (self.belowDisplay) {
+        CGFloat belowX = x + (_arrowLength - self.belowDisplay.width) / 2.0;
+        self.belowDisplay.position = CGPointMake(belowX, arrowY - self.labelGap - self.belowDisplay.ascent);
+    }
 }
 
 @end

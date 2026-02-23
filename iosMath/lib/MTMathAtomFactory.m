@@ -433,6 +433,43 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
             }
         }
         return table;
+    } else if ([env isEqualToString:@"array"]) {
+        // array: column alignments are set by the parser via column specifiers
+        // Default to center if parser didn't set alignments
+        table.interRowAdditionalSpacing = 1;
+        table.interColumnSpacing = 18;
+        return table;
+    } else if ([env isEqualToString:@"align"] || [env isEqualToString:@"align*"]) {
+        // align: alternating right/left columns (implicit 2-column groups)
+        table.interRowAdditionalSpacing = 1;
+        table.interColumnSpacing = 0;
+        NSUInteger cols = table.numColumns;
+        // Add spacer before even columns (the "left" side of each pair)
+        MTMathAtom* spacer = [MTMathAtom atomWithType:kMTMathAtomOrdinary value:@""];
+        for (NSUInteger j = 0; j < cols; j++) {
+            if (j % 2 == 0) {
+                [table setAlignment:kMTColumnAlignmentRight forColumn:j];
+            } else {
+                [table setAlignment:kMTColumnAlignmentLeft forColumn:j];
+                for (int i = 0; i < table.cells.count; i++) {
+                    NSArray<MTMathList*>* row = table.cells[i];
+                    if (j < row.count) {
+                        [row[j] insertAtom:spacer atIndex:0];
+                    }
+                }
+            }
+        }
+        return table;
+    } else if ([env isEqualToString:@"gathered"]) {
+        if (table.numColumns != 1) {
+            NSString* message = @"gathered environment can only have 1 column";
+            if (error) *error = [NSError errorWithDomain:MTParseError code:MTParseErrorInvalidNumColumns userInfo:@{ NSLocalizedDescriptionKey : message }];
+            return nil;
+        }
+        table.interRowAdditionalSpacing = 1;
+        table.interColumnSpacing = 0;
+        [table setAlignment:kMTColumnAlignmentCenter forColumn:0];
+        return table;
     }
     if (error) {
         NSString* message = [NSString stringWithFormat:@"Unknown environment: %@", env];

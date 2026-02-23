@@ -51,6 +51,7 @@ NSUInteger getInterElementSpaceArrayIndexForType(MTMathAtomType type, BOOL row) 
         case kMTMathAtomPhantom:
         case kMTMathAtomBoxed:
         case kMTMathAtomCancel:
+        case kMTMathAtomExtensibleArrow:
         case kMTMathAtomOrdinary:
         case kMTMathAtomPlaceholder:   // A placeholder is treated as ordinary
             return 0;
@@ -825,6 +826,23 @@ static void getBboxDetails(CGRect bbox, CGFloat* ascent, CGFloat* descent)
                 [_displayAtoms addObject:display];
                 _currentPosition.x += display.width;
                 // add super scripts || subscripts
+                if (atom.subScript || atom.superScript) {
+                    [self makeScripts:atom display:display index:atom.indexRange.location delta:0];
+                }
+                break;
+            }
+
+            case kMTMathAtomExtensibleArrow: {
+                if (_currentLine.length > 0) {
+                    [self addDisplayLine];
+                }
+                [self addInterElementSpace:prevNode currentType:kMTMathAtomRelation];
+                atom.type = kMTMathAtomRelation;
+
+                MTExtensibleArrow* arrow = (MTExtensibleArrow*) atom;
+                MTDisplay* display = [self makeExtensibleArrow:arrow];
+                [_displayAtoms addObject:display];
+                _currentPosition.x += display.width;
                 if (atom.subScript || atom.superScript) {
                     [self makeScripts:atom display:display index:atom.indexRange.location delta:0];
                 }
@@ -1738,6 +1756,46 @@ static const NSInteger kDelimiterShortfallPoints = 5;
     boxedDisplay.descent = innerListDisplay.descent + padding + boxedDisplay.lineThickness;
     boxedDisplay.width = innerListDisplay.width + 2 * padding + 2 * boxedDisplay.lineThickness;
     return boxedDisplay;
+}
+
+#pragma mark Extensible Arrows
+
+- (MTDisplay*) makeExtensibleArrow:(MTExtensibleArrow*) arrow
+{
+    MTMathListDisplay* aboveDisplay = nil;
+    MTMathListDisplay* belowDisplay = nil;
+    CGFloat minArrowLength = 20.0;  // minimum arrow length in points
+    CGFloat arrowPadding = 8.0;     // padding beyond label width
+    CGFloat maxLabelWidth = 0;
+
+    if (arrow.aboveList) {
+        aboveDisplay = [MTTypesetter createLineForMathList:arrow.aboveList font:_font style:self.scriptStyle cramped:_cramped];
+        maxLabelWidth = MAX(maxLabelWidth, aboveDisplay.width);
+    }
+    if (arrow.belowList) {
+        belowDisplay = [MTTypesetter createLineForMathList:arrow.belowList font:_font style:self.scriptStyle cramped:_cramped];
+        maxLabelWidth = MAX(maxLabelWidth, belowDisplay.width);
+    }
+
+    CGFloat arrowLength = MAX(minArrowLength, maxLabelWidth + 2 * arrowPadding);
+
+    MTExtensibleArrowDisplay* display = [[MTExtensibleArrowDisplay alloc] initWithAbove:aboveDisplay below:belowDisplay arrowType:arrow.arrowType arrowLength:arrowLength position:_currentPosition range:arrow.indexRange];
+    display.lineThickness = _styleFont.mathTable.fractionRuleThickness;
+    display.labelGap = _styleFont.mathTable.fractionRuleThickness * 2;
+
+    // Calculate dimensions
+    CGFloat ascent = display.lineThickness;
+    CGFloat descent = display.lineThickness;
+    if (aboveDisplay) {
+        ascent = display.labelGap + aboveDisplay.ascent + aboveDisplay.descent;
+    }
+    if (belowDisplay) {
+        descent = display.labelGap + belowDisplay.ascent + belowDisplay.descent;
+    }
+    display.ascent = ascent;
+    display.descent = descent;
+    display.width = arrowLength;
+    return display;
 }
 
 #pragma mark Cancel

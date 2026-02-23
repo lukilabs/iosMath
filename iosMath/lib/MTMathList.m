@@ -66,6 +66,8 @@ static NSString* typeToText(MTMathAtomType type) {
             return @"Boxed";
         case kMTMathAtomCancel:
             return @"Cancel";
+        case kMTMathAtomExtensibleArrow:
+            return @"ExtensibleArrow";
         case kMTMathAtomBoundary:
             return @"Boundary";
         case kMTMathAtomSpace:
@@ -130,6 +132,9 @@ static NSString* typeToText(MTMathAtomType type) {
 
         case kMTMathAtomCancel:
             return [[MTCancel alloc] init];
+
+        case kMTMathAtomExtensibleArrow:
+            return [[MTExtensibleArrow alloc] init];
 
         case kMTMathAtomSpace:
             return [[MTMathSpace alloc] initWithSpace:0];
@@ -698,6 +703,53 @@ static NSString* typeToText(MTMathAtomType type) {
 
 @end
 
+#pragma mark - MTExtensibleArrow
+
+@implementation MTExtensibleArrow
+
+- (instancetype)init
+{
+    return [self initWithArrowType:kMTExtensibleArrowRight];
+}
+
+- (instancetype)initWithArrowType:(MTExtensibleArrowType)arrowType
+{
+    self = [super initWithType:kMTMathAtomExtensibleArrow value:@""];
+    if (self) {
+        _arrowType = arrowType;
+    }
+    return self;
+}
+
+- (instancetype)initWithType:(MTMathAtomType)type value:(NSString *)value
+{
+    if (type == kMTMathAtomExtensibleArrow) {
+        return [self init];
+    }
+    @throw [NSException exceptionWithName:@"InvalidMethod"
+                                   reason:@"[MTExtensibleArrow initWithType:value:] cannot be called. Use [MTExtensibleArrow initWithArrowType:] instead."
+                                 userInfo:nil];
+}
+
+- (id)copyWithZone:(NSZone *)zone
+{
+    MTExtensibleArrow *copy = [super copyWithZone:zone];
+    copy.aboveList = [self.aboveList copyWithZone:zone];
+    copy.belowList = [self.belowList copyWithZone:zone];
+    copy->_arrowType = self.arrowType;
+    return copy;
+}
+
+- (instancetype)finalized
+{
+    MTExtensibleArrow *newArrow = [super finalized];
+    newArrow.aboveList = newArrow.aboveList.finalized;
+    newArrow.belowList = newArrow.belowList.finalized;
+    return newArrow;
+}
+
+@end
+
 #pragma mark - MTAccent
 
 @implementation MTAccent
@@ -849,6 +901,7 @@ static NSString* typeToText(MTMathAtomType type) {
 
 @property (nonatomic, nonnull) NSMutableArray<NSNumber*>* alignments;
 @property (nonatomic, nonnull) NSMutableArray<NSMutableArray<MTMathList*>*>* cells;
+@property (nonatomic, nonnull) NSMutableArray<NSNumber*>* verticalLines;
 
 @end
 
@@ -860,6 +913,7 @@ static NSString* typeToText(MTMathAtomType type) {
     if (self) {
         self.alignments = [NSMutableArray array];
         self.cells = [NSMutableArray array];
+        self.verticalLines = [NSMutableArray array];
         self.interRowAdditionalSpacing = 0;
         self.interColumnSpacing = 0;
         _environment = env;
@@ -889,6 +943,7 @@ static NSString* typeToText(MTMathAtomType type) {
     op.interColumnSpacing = self.interColumnSpacing;
     op->_environment = self.environment;
     op.alignments = [NSMutableArray arrayWithArray:self.alignments];
+    op.verticalLines = [NSMutableArray arrayWithArray:self.verticalLines];
     // Perform a deep copy of the cells.
     NSMutableArray* cellCopy = [NSMutableArray arrayWithCapacity:self.cells.count];
     for (NSMutableArray* row in self.cells) {
@@ -961,6 +1016,11 @@ static NSString* typeToText(MTMathAtomType type) {
 - (NSUInteger) numRows
 {
     return self.cells.count;
+}
+
+- (void)addVerticalLineAtColumn:(NSInteger)column
+{
+    [_verticalLines addObject:@(column)];
 }
 
 @end

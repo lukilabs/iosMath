@@ -549,4 +549,188 @@
     [self assertParses:latex];
 }
 
+#pragma mark - Phase 4: Extensible Arrows
+
+- (void)testXrightarrow
+{
+    [self assertParses:@"A \\xrightarrow{\\text{f}} B"];
+}
+
+- (void)testXleftarrow
+{
+    [self assertParses:@"A \\xleftarrow{\\text{g}} B"];
+}
+
+- (void)testXrightarrowWithBelow
+{
+    // \xrightarrow[below]{above}
+    [self assertParses:@"A \\xrightarrow[\\beta]{\\alpha} B"];
+}
+
+- (void)testXleftarrowWithBelow
+{
+    [self assertParses:@"A \\xleftarrow[n \\to \\infty]{\\Delta} B"];
+}
+
+- (void)testXRightarrow
+{
+    [self assertParses:@"A \\xRightarrow{\\text{implies}} B"];
+}
+
+- (void)testXLeftarrow
+{
+    [self assertParses:@"A \\xLeftarrow{\\text{implied by}} B"];
+}
+
+- (void)testXleftrightarrow
+{
+    [self assertParses:@"A \\xleftrightarrow{\\sim} B"];
+}
+
+- (void)testXLeftrightarrow
+{
+    [self assertParses:@"A \\xLeftrightarrow{\\text{iff}} B"];
+}
+
+- (void)testXhookrightarrow
+{
+    [self assertParses:@"A \\xhookrightarrow{\\iota} B"];
+}
+
+- (void)testXhookleftarrow
+{
+    [self assertParses:@"A \\xhookleftarrow{} B"];
+}
+
+- (void)testXmapsto
+{
+    [self assertParses:@"x \\xmapsto{f} f(x)"];
+}
+
+- (void)testXlongequal
+{
+    [self assertParses:@"A \\xlongequal{\\text{def}} B"];
+}
+
+- (void)testXtwoheadrightarrow
+{
+    [self assertParses:@"A \\xtwoheadrightarrow{\\pi} B"];
+}
+
+- (void)testXtwoheadleftarrow
+{
+    [self assertParses:@"A \\xtwoheadleftarrow{} B"];
+}
+
+- (void)testXrightharpoonup
+{
+    [self assertParses:@"A \\xrightharpoonup{} B"];
+}
+
+- (void)testXleftharpoondown
+{
+    [self assertParses:@"A \\xleftharpoondown{} B"];
+}
+
+- (void)testExtensibleArrowAtomType
+{
+    // Verify the atom type is correct
+    NSError *error = nil;
+    MTMathList *list = [MTMathListBuilder buildFromString:@"\\xrightarrow{f}" error:&error];
+    XCTAssertNil(error);
+    XCTAssertNotNil(list);
+    XCTAssertEqual(list.atoms.count, 1);
+    MTMathAtom *atom = list.atoms[0];
+    XCTAssertEqual(atom.type, kMTMathAtomExtensibleArrow);
+    XCTAssertTrue([atom isKindOfClass:[MTExtensibleArrow class]]);
+    MTExtensibleArrow *arrow = (MTExtensibleArrow*)atom;
+    XCTAssertEqual(arrow.arrowType, kMTExtensibleArrowRight);
+    XCTAssertNotNil(arrow.aboveList);
+    XCTAssertNil(arrow.belowList);
+}
+
+- (void)testExtensibleArrowWithBothLabels
+{
+    NSError *error = nil;
+    MTMathList *list = [MTMathListBuilder buildFromString:@"\\xrightarrow[g]{f}" error:&error];
+    XCTAssertNil(error);
+    XCTAssertNotNil(list);
+    MTExtensibleArrow *arrow = (MTExtensibleArrow*)list.atoms[0];
+    XCTAssertNotNil(arrow.aboveList);
+    XCTAssertNotNil(arrow.belowList);
+}
+
+#pragma mark - Phase 4: Array Environment
+
+- (void)testArrayBasic
+{
+    [self assertParses:@"\\begin{array}{lcr} a & b & c \\\\ d & e & f \\end{array}"];
+}
+
+- (void)testArrayWithVerticalLines
+{
+    [self assertParses:@"\\begin{array}{|l|c|r|} a & b & c \\\\ d & e & f \\end{array}"];
+}
+
+- (void)testArrayColumnAlignments
+{
+    NSError *error = nil;
+    NSString *latex = @"\\begin{array}{lcr} a & b & c \\end{array}";
+    MTMathList *list = [MTMathListBuilder buildFromString:latex error:&error];
+    XCTAssertNil(error);
+    XCTAssertNotNil(list);
+    // The array is inside the list — find the table atom
+    MTMathAtom *atom = list.atoms[0];
+    XCTAssertEqual(atom.type, kMTMathAtomTable);
+    MTMathTable *table = (MTMathTable*)atom;
+    XCTAssertEqual([table getAlignmentForColumn:0], kMTColumnAlignmentLeft);
+    XCTAssertEqual([table getAlignmentForColumn:1], kMTColumnAlignmentCenter);
+    XCTAssertEqual([table getAlignmentForColumn:2], kMTColumnAlignmentRight);
+}
+
+- (void)testArrayVerticalLinePositions
+{
+    NSError *error = nil;
+    NSString *latex = @"\\begin{array}{|l|c|} a & b \\end{array}";
+    MTMathList *list = [MTMathListBuilder buildFromString:latex error:&error];
+    XCTAssertNil(error);
+    XCTAssertNotNil(list);
+    MTMathTable *table = (MTMathTable*)list.atoms[0];
+    XCTAssertEqual(table.verticalLines.count, 3);
+    XCTAssertEqual(table.verticalLines[0].integerValue, 0);  // before col 0
+    XCTAssertEqual(table.verticalLines[1].integerValue, 1);  // between col 0 and 1
+    XCTAssertEqual(table.verticalLines[2].integerValue, 2);  // after col 1
+}
+
+#pragma mark - Phase 4: Additional Alignment Environments
+
+- (void)testAlignEnvironment
+{
+    [self assertParses:@"\\begin{align} x &= 1 \\\\ y &= 2 \\end{align}"];
+}
+
+- (void)testAlignStarEnvironment
+{
+    [self assertParses:@"\\begin{align*} x &= 1 \\\\ y &= 2 \\end{align*}"];
+}
+
+- (void)testGatheredEnvironment
+{
+    [self assertParses:@"\\begin{gathered} x + y \\\\ a + b \\end{gathered}"];
+}
+
+#pragma mark - Phase 4: Combined Stress Test
+
+- (void)testPhase4Combined
+{
+    NSString *latex = @"A \\xrightarrow[\\beta]{\\alpha} B \\xleftarrow{f} C";
+    [self assertParses:latex];
+}
+
+- (void)testPhase4ArrayAndArrows
+{
+    NSString *latex = @"\\begin{array}{|c|c|} x & \\xrightarrow{f} \\\\ y & z \\end{array}";
+    [self assertParses:latex];
+}
+
 @end

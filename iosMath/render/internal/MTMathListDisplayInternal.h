@@ -137,3 +137,14 @@
 @property (nonatomic) CGFloat lineThickness;
 
 @end
+
+@interface MTExtensibleArrowDisplay ()
+
+- (instancetype)initWithAbove:(nullable MTMathListDisplay*) above below:(nullable MTMathListDisplay*) below arrowType:(MTExtensibleArrowType) arrowType arrowLength:(CGFloat) arrowLength position:(CGPoint) position range:(NSRange) range NS_DESIGNATED_INITIALIZER;
+
+/// Thickness of the arrow line
+@property (nonatomic) CGFloat lineThickness;
+/// Gap between the arrow and the labels
+@property (nonatomic) CGFloat labelGap;
+
+@end

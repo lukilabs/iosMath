@@ -220,4 +220,20 @@ typedef NS_ENUM(unsigned int, MTLinePosition)  {
 
 @end
 
+/// Rendering of an extensible arrow with optional above/below labels
+@interface MTExtensibleArrowDisplay : MTDisplay
+
+- (instancetype)init NS_UNAVAILABLE;
+
+/** A display representing the label above the arrow. */
+@property (nonatomic, readonly, nullable) MTMathListDisplay* aboveDisplay;
+
+/** A display representing the label below the arrow. */
+@property (nonatomic, readonly, nullable) MTMathListDisplay* belowDisplay;
+
+/** The type of arrow. */
+@property (nonatomic, readonly) MTExtensibleArrowType arrowType;
+
+@end
+
 NS_ASSUME_NONNULL_END
