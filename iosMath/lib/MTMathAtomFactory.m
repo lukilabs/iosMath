@@ -368,9 +368,9 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
         [table setAlignment:kMTColumnAlignmentCenter forColumn:1];
         [table setAlignment:kMTColumnAlignmentLeft forColumn:2];
         return table;
-    } else if ([env isEqualToString:@"cases"]) {
+    } else if ([env isEqualToString:@"cases"] || [env isEqualToString:@"dcases"]) {
         if (table.numColumns != 2) {
-            NSString* message = @"cases environment can only have 2 columns";
+            NSString* message = [NSString stringWithFormat:@"%@ environment can only have 2 columns", env];
             *error = [NSError errorWithDomain:MTParseError code:MTParseErrorInvalidNumColumns userInfo:@{ NSLocalizedDescriptionKey : message }];
             return nil;
         }
@@ -378,8 +378,9 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
         table.interColumnSpacing = 18;
         [table setAlignment:kMTColumnAlignmentLeft forColumn:0];
         [table setAlignment:kMTColumnAlignmentLeft forColumn:1];
-        // All the lists are in textstyle
-        MTMathAtom* style = [[MTMathStyle alloc] initWithStyle:kMTLineStyleText];
+        // dcases uses display style, cases uses text style
+        MTLineStyle cellStyle = [env isEqualToString:@"dcases"] ? kMTLineStyleDisplay : kMTLineStyleText;
+        MTMathAtom* style = [[MTMathStyle alloc] initWithStyle:cellStyle];
         for (int i = 0; i < table.cells.count; i++) {
             NSArray<MTMathList*>* row = table.cells[i];
             for (int j = 0; j < row.count; j++) {
@@ -393,6 +394,45 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
         MTMathAtom* space = [self atomForLatexSymbolName:@","];
         inner.innerList = [MTMathList mathListWithAtoms:space, table, nil];
         return inner;
+    } else if ([env isEqualToString:@"rcases"] || [env isEqualToString:@"drcases"]) {
+        if (table.numColumns != 2) {
+            NSString* message = [NSString stringWithFormat:@"%@ environment can only have 2 columns", env];
+            *error = [NSError errorWithDomain:MTParseError code:MTParseErrorInvalidNumColumns userInfo:@{ NSLocalizedDescriptionKey : message }];
+            return nil;
+        }
+        table.interRowAdditionalSpacing = 0;
+        table.interColumnSpacing = 18;
+        [table setAlignment:kMTColumnAlignmentLeft forColumn:0];
+        [table setAlignment:kMTColumnAlignmentLeft forColumn:1];
+        // drcases uses display style, rcases uses text style
+        MTLineStyle cellStyle = [env isEqualToString:@"drcases"] ? kMTLineStyleDisplay : kMTLineStyleText;
+        MTMathAtom* style = [[MTMathStyle alloc] initWithStyle:cellStyle];
+        for (int i = 0; i < table.cells.count; i++) {
+            NSArray<MTMathList*>* row = table.cells[i];
+            for (int j = 0; j < row.count; j++) {
+                [row[j] insertAtom:style atIndex:0];
+            }
+        }
+        // rcases: right brace instead of left
+        MTInner* inner = [[MTInner alloc] init];
+        inner.leftBoundary = [self boundaryAtomForDelimiterName:@"."];
+        inner.rightBoundary = [self boundaryAtomForDelimiterName:@"}"];
+        MTMathAtom* space = [self atomForLatexSymbolName:@","];
+        inner.innerList = [MTMathList mathListWithAtoms:space, table, nil];
+        return inner;
+    } else if ([env isEqualToString:@"smallmatrix"]) {
+        // smallmatrix: like matrix but with script style and tighter spacing
+        table.environment = @"matrix";
+        table.interRowAdditionalSpacing = 0;
+        table.interColumnSpacing = 9;  // Tighter than matrix (18)
+        MTMathAtom* style = [[MTMathStyle alloc] initWithStyle:kMTLineStyleScript];
+        for (int i = 0; i < table.cells.count; i++) {
+            NSArray<MTMathList*>* row = table.cells[i];
+            for (int j = 0; j < row.count; j++) {
+                [row[j] insertAtom:style atIndex:0];
+            }
+        }
+        return table;
     }
     if (error) {
         NSString* message = [NSString stringWithFormat:@"Unknown environment: %@", env];
@@ -886,6 +926,11 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
                     @"vec" : @"\u20D7",
                     @"widehat" : @"\u0302",
                     @"widetilde" : @"\u0303",
+                    @"overrightarrow" : @"\u20D7",  // Combining right arrow above (same as vec)
+                    @"overleftarrow" : @"\u20D6",   // Combining left arrow above
+                    @"overleftrightarrow" : @"\u20E1",  // Combining left right arrow above
+                    @"overbrace" : @"\u23DE",       // Top curly bracket
+                    @"underbrace" : @"\u23DF",      // Bottom curly bracket
                     };
     }
     return accents;

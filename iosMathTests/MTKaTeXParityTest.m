@@ -384,4 +384,169 @@
     [self assertParses:latex];
 }
 
+#pragma mark - Phase 3: Cancel
+
+- (void)testCancel
+{
+    [self assertParses:@"\\cancel{x}"];
+    MTMathList *list = [self parseNoError:@"\\cancel{x}"];
+    MTMathAtom *atom = list.atoms[0];
+    XCTAssertEqual(atom.type, kMTMathAtomCancel);
+    MTCancel *cancel = (MTCancel *)atom;
+    XCTAssertEqual(cancel.cancelType, kMTCancelForward);
+    XCTAssertNotNil(cancel.innerList);
+}
+
+- (void)testBCancel
+{
+    [self assertParses:@"\\bcancel{x}"];
+    MTMathList *list = [self parseNoError:@"\\bcancel{x}"];
+    MTCancel *cancel = (MTCancel *)list.atoms[0];
+    XCTAssertEqual(cancel.cancelType, kMTCancelBackward);
+}
+
+- (void)testXCancel
+{
+    [self assertParses:@"\\xcancel{x + y}"];
+    MTMathList *list = [self parseNoError:@"\\xcancel{x}"];
+    MTCancel *cancel = (MTCancel *)list.atoms[0];
+    XCTAssertEqual(cancel.cancelType, kMTCancelCross);
+}
+
+- (void)testSout
+{
+    [self assertParses:@"\\sout{old text}"];
+    MTMathList *list = [self parseNoError:@"\\sout{x}"];
+    MTCancel *cancel = (MTCancel *)list.atoms[0];
+    XCTAssertEqual(cancel.cancelType, kMTCancelStrikethrough);
+}
+
+#pragma mark - Phase 3: Stacking
+
+- (void)testOverset
+{
+    [self assertParses:@"\\overset{\\sim}{=}"];
+    [self assertParses:@"\\overset{n}{\\rightarrow}"];
+}
+
+- (void)testUnderset
+{
+    [self assertParses:@"\\underset{n \\to \\infty}{\\lim}"];
+}
+
+- (void)testStackrel
+{
+    [self assertParses:@"\\stackrel{?}{=}"];
+}
+
+#pragma mark - Phase 3: Arrow and Brace Accents
+
+- (void)testOverArrows
+{
+    [self assertParses:@"\\overrightarrow{AB}"];
+    [self assertParses:@"\\overleftarrow{AB}"];
+    [self assertParses:@"\\overleftrightarrow{AB}"];
+}
+
+- (void)testOverUnderBrace
+{
+    [self assertParses:@"\\overbrace{a + b + c}"];
+    [self assertParses:@"\\underbrace{x + y}"];
+}
+
+#pragma mark - Phase 3: Box Variants
+
+- (void)testFbox
+{
+    [self assertParses:@"\\fbox{text}"];
+    MTMathList *list = [self parseNoError:@"\\fbox{x}"];
+    XCTAssertEqual(list.atoms[0].type, kMTMathAtomBoxed);
+}
+
+- (void)testColorbox
+{
+    [self assertParses:@"\\colorbox{yellow}{x + y}"];
+}
+
+- (void)testFcolorbox
+{
+    [self assertParses:@"\\fcolorbox{red}{yellow}{x + y}"];
+}
+
+#pragma mark - Phase 3: Fraction/Binom Variants
+
+- (void)testDfracTfrac
+{
+    [self assertParses:@"\\dfrac{a}{b}"];
+    [self assertParses:@"\\tfrac{a}{b}"];
+    // Verify they produce fractions
+    MTMathList *list = [self parseNoError:@"\\dfrac{1}{2}"];
+    XCTAssertTrue(list.atoms.count > 0);
+    XCTAssertEqual(list.atoms[0].type, kMTMathAtomFraction);
+}
+
+- (void)testCfrac
+{
+    [self assertParses:@"\\cfrac{1}{1 + \\cfrac{1}{2}}"];
+}
+
+- (void)testDbinomTbinom
+{
+    [self assertParses:@"\\dbinom{n}{k}"];
+    [self assertParses:@"\\tbinom{n}{k}"];
+    MTMathList *list = [self parseNoError:@"\\dbinom{n}{k}"];
+    XCTAssertEqual(list.atoms[0].type, kMTMathAtomFraction);
+}
+
+#pragma mark - Phase 3: Lap
+
+- (void)testRlap
+{
+    [self assertParses:@"\\rlap{/}\\quad o"];
+    MTMathList *list = [self parseNoError:@"\\rlap{x}"];
+    MTPhantom *phantom = (MTPhantom *)list.atoms[0];
+    XCTAssertEqual(phantom.phantomType, kMTPhantomLapRight);
+}
+
+- (void)testLlap
+{
+    [self assertParses:@"\\llap{x}"];
+    MTMathList *list = [self parseNoError:@"\\llap{x}"];
+    MTPhantom *phantom = (MTPhantom *)list.atoms[0];
+    XCTAssertEqual(phantom.phantomType, kMTPhantomLapLeft);
+}
+
+- (void)testClap
+{
+    [self assertParses:@"\\clap{x}"];
+    MTMathList *list = [self parseNoError:@"\\clap{x}"];
+    MTPhantom *phantom = (MTPhantom *)list.atoms[0];
+    XCTAssertEqual(phantom.phantomType, kMTPhantomLapCenter);
+}
+
+#pragma mark - Phase 3: Environment Variants
+
+- (void)testDcases
+{
+    [self assertParses:@"\\begin{dcases} x & x > 0 \\\\ -x & x \\leq 0 \\end{dcases}"];
+}
+
+- (void)testRcases
+{
+    [self assertParses:@"\\begin{rcases} x & x > 0 \\\\ -x & x \\leq 0 \\end{rcases}"];
+}
+
+- (void)testSmallmatrix
+{
+    [self assertParses:@"\\begin{smallmatrix} a & b \\\\ c & d \\end{smallmatrix}"];
+}
+
+#pragma mark - Phase 3: Combined Stress Test
+
+- (void)testPhase3Combined
+{
+    NSString *latex = @"\\cancel{a} + \\dfrac{1}{2} + \\overset{\\sim}{=} + \\overrightarrow{AB}";
+    [self assertParses:latex];
+}
+
 @end

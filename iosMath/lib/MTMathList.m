@@ -64,6 +64,8 @@ static NSString* typeToText(MTMathAtomType type) {
             return @"Phantom";
         case kMTMathAtomBoxed:
             return @"Boxed";
+        case kMTMathAtomCancel:
+            return @"Cancel";
         case kMTMathAtomBoundary:
             return @"Boundary";
         case kMTMathAtomSpace:
@@ -125,6 +127,9 @@ static NSString* typeToText(MTMathAtomType type) {
 
         case kMTMathAtomBoxed:
             return [[MTBoxed alloc] init];
+
+        case kMTMathAtomCancel:
+            return [[MTCancel alloc] init];
 
         case kMTMathAtomSpace:
             return [[MTMathSpace alloc] initWithSpace:0];
@@ -644,6 +649,51 @@ static NSString* typeToText(MTMathAtomType type) {
     MTBoxed *newBoxed = [super finalized];
     newBoxed.innerList = newBoxed.innerList.finalized;
     return newBoxed;
+}
+
+@end
+
+#pragma mark - MTCancel
+
+@implementation MTCancel
+
+- (instancetype)init
+{
+    return [self initWithCancelType:kMTCancelForward];
+}
+
+- (instancetype)initWithCancelType:(MTCancelType)cancelType
+{
+    self = [super initWithType:kMTMathAtomCancel value:@""];
+    if (self) {
+        _cancelType = cancelType;
+    }
+    return self;
+}
+
+- (instancetype)initWithType:(MTMathAtomType)type value:(NSString *)value
+{
+    if (type == kMTMathAtomCancel) {
+        return [self init];
+    }
+    @throw [NSException exceptionWithName:@"InvalidMethod"
+                                   reason:@"[MTCancel initWithType:value:] cannot be called. Use [MTCancel initWithCancelType:] instead."
+                                 userInfo:nil];
+}
+
+- (id)copyWithZone:(NSZone *)zone
+{
+    MTCancel *copy = [super copyWithZone:zone];
+    copy.innerList = [self.innerList copyWithZone:zone];
+    copy->_cancelType = self.cancelType;
+    return copy;
+}
+
+- (instancetype)finalized
+{
+    MTCancel *newCancel = [super finalized];
+    newCancel.innerList = newCancel.innerList.finalized;
+    return newCancel;
 }
 
 @end

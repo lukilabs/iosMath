@@ -128,3 +128,12 @@
 @property (nonatomic) CGFloat lineThickness;
 
 @end
+
+@interface MTCancelDisplay ()
+
+- (instancetype)initWithInner:(MTMathListDisplay*) inner cancelType:(MTCancelType) cancelType position:(CGPoint) position range:(NSRange) range NS_DESIGNATED_INITIALIZER;
+
+/// Thickness of the cancel line
+@property (nonatomic) CGFloat lineThickness;
+
+@end

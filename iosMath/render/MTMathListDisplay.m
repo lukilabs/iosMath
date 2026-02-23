@@ -806,18 +806,19 @@ static BOOL isIos6Supported() {
 
 - (void)draw:(CGContextRef)context
 {
-    // Phantom variants (full, horizontal, vertical) are invisible — don't draw.
-    // Smash variants are visible — draw the inner content.
     switch (_phantomType) {
         case kMTPhantomFull:
         case kMTPhantomHorizontal:
         case kMTPhantomVertical:
-            // No drawing — takes space but renders nothing
+            // Phantom: invisible — takes space but renders nothing
             break;
         case kMTPhantomSmashTop:
         case kMTPhantomSmashBottom:
         case kMTPhantomSmashBoth:
-            // Smash: content is visible, just metrics are adjusted
+        case kMTPhantomLapRight:
+        case kMTPhantomLapLeft:
+        case kMTPhantomLapCenter:
+            // Smash and Lap: content is visible
             [self.inner draw:context];
             break;
     }
@@ -881,6 +882,84 @@ static BOOL isIos6Supported() {
 {
     super.position = position;
     self.inner.position = CGPointMake(position.x + self.padding, position.y);
+}
+
+@end
+
+#pragma mark - MTCancelDisplay
+
+@implementation MTCancelDisplay
+
+- (instancetype)initWithInner:(MTMathListDisplay *)inner cancelType:(MTCancelType)cancelType position:(CGPoint)position range:(NSRange)range
+{
+    self = [super init];
+    if (self) {
+        _inner = inner;
+        _cancelType = cancelType;
+        _lineThickness = 1.0;
+        self.position = position;
+        self.range = range;
+    }
+    return self;
+}
+
+- (void)setTextColor:(MTColor *)textColor
+{
+    [super setTextColor:textColor];
+    _inner.textColor = textColor;
+}
+
+- (void)draw:(CGContextRef)context
+{
+    // Draw the inner content first
+    [self.inner draw:context];
+
+    CGContextSaveGState(context);
+
+    [self.textColor setStroke];
+
+    CGFloat x = self.position.x;
+    CGFloat bottom = self.position.y - self.inner.descent;
+    CGFloat top = self.position.y + self.inner.ascent;
+    CGFloat w = self.inner.width;
+    CGFloat midY = (top + bottom) / 2.0;
+
+    MTBezierPath* path = [MTBezierPath bezierPath];
+    path.lineWidth = self.lineThickness;
+
+    switch (_cancelType) {
+        case kMTCancelForward:
+            // Bottom-left to top-right
+            [path moveToPoint:CGPointMake(x, bottom)];
+            [path addLineToPoint:CGPointMake(x + w, top)];
+            break;
+        case kMTCancelBackward:
+            // Top-left to bottom-right
+            [path moveToPoint:CGPointMake(x, top)];
+            [path addLineToPoint:CGPointMake(x + w, bottom)];
+            break;
+        case kMTCancelCross:
+            // Both diagonals
+            [path moveToPoint:CGPointMake(x, bottom)];
+            [path addLineToPoint:CGPointMake(x + w, top)];
+            [path moveToPoint:CGPointMake(x, top)];
+            [path addLineToPoint:CGPointMake(x + w, bottom)];
+            break;
+        case kMTCancelStrikethrough:
+            // Horizontal line through the middle
+            [path moveToPoint:CGPointMake(x, midY)];
+            [path addLineToPoint:CGPointMake(x + w, midY)];
+            break;
+    }
+    [path stroke];
+
+    CGContextRestoreGState(context);
+}
+
+- (void)setPosition:(CGPoint)position
+{
+    super.position = position;
+    self.inner.position = CGPointMake(position.x, position.y);
 }
 
 @end

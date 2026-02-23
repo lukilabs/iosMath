@@ -50,6 +50,7 @@ NSUInteger getInterElementSpaceArrayIndexForType(MTMathAtomType type, BOOL row) 
         case kMTMathAtomColor:
         case kMTMathAtomPhantom:
         case kMTMathAtomBoxed:
+        case kMTMathAtomCancel:
         case kMTMathAtomOrdinary:
         case kMTMathAtomPlaceholder:   // A placeholder is treated as ordinary
             return 0;
@@ -801,6 +802,26 @@ static void getBboxDetails(CGRect bbox, CGFloat* ascent, CGFloat* descent)
 
                 MTBoxed* boxed = (MTBoxed*) atom;
                 MTDisplay* display = [self makeBoxed:boxed];
+                [_displayAtoms addObject:display];
+                _currentPosition.x += display.width;
+                // add super scripts || subscripts
+                if (atom.subScript || atom.superScript) {
+                    [self makeScripts:atom display:display index:atom.indexRange.location delta:0];
+                }
+                break;
+            }
+
+            case kMTMathAtomCancel: {
+                // stash the existing layout
+                if (_currentLine.length > 0) {
+                    [self addDisplayLine];
+                }
+                // Cancel is considered as Ord in rule 16.
+                [self addInterElementSpace:prevNode currentType:kMTMathAtomOrdinary];
+                atom.type = kMTMathAtomOrdinary;
+
+                MTCancel* cancel = (MTCancel*) atom;
+                MTDisplay* display = [self makeCancel:cancel];
                 [_displayAtoms addObject:display];
                 _currentPosition.x += display.width;
                 // add super scripts || subscripts
@@ -1678,6 +1699,28 @@ static const NSInteger kDelimiterShortfallPoints = 5;
             phantomDisplay.ascent = innerListDisplay.ascent;
             phantomDisplay.descent = 0;
             break;
+        case kMTPhantomLapRight:
+            // rlap: visible, zero width (content extends right from current position)
+            phantomDisplay.width = 0;
+            phantomDisplay.ascent = innerListDisplay.ascent;
+            phantomDisplay.descent = innerListDisplay.descent;
+            break;
+        case kMTPhantomLapLeft:
+            // llap: visible, zero width (content extends left)
+            phantomDisplay.width = 0;
+            phantomDisplay.ascent = innerListDisplay.ascent;
+            phantomDisplay.descent = innerListDisplay.descent;
+            // Shift inner left by its width
+            innerListDisplay.position = CGPointMake(_currentPosition.x - innerListDisplay.width, _currentPosition.y);
+            break;
+        case kMTPhantomLapCenter:
+            // clap: visible, zero width (content centered)
+            phantomDisplay.width = 0;
+            phantomDisplay.ascent = innerListDisplay.ascent;
+            phantomDisplay.descent = innerListDisplay.descent;
+            // Shift inner left by half its width
+            innerListDisplay.position = CGPointMake(_currentPosition.x - innerListDisplay.width / 2.0, _currentPosition.y);
+            break;
     }
     return phantomDisplay;
 }
@@ -1695,6 +1738,19 @@ static const NSInteger kDelimiterShortfallPoints = 5;
     boxedDisplay.descent = innerListDisplay.descent + padding + boxedDisplay.lineThickness;
     boxedDisplay.width = innerListDisplay.width + 2 * padding + 2 * boxedDisplay.lineThickness;
     return boxedDisplay;
+}
+
+#pragma mark Cancel
+
+- (MTDisplay*) makeCancel:(MTCancel*) cancel
+{
+    MTMathListDisplay* innerListDisplay = [MTTypesetter createLineForMathList:cancel.innerList font:_font style:_style cramped:_cramped];
+    MTCancelDisplay* cancelDisplay = [[MTCancelDisplay alloc] initWithInner:innerListDisplay cancelType:cancel.cancelType position:_currentPosition range:cancel.indexRange];
+    cancelDisplay.lineThickness = _styleFont.mathTable.fractionRuleThickness;
+    cancelDisplay.ascent = innerListDisplay.ascent;
+    cancelDisplay.descent = innerListDisplay.descent;
+    cancelDisplay.width = innerListDisplay.width;
+    return cancelDisplay;
 }
 
 #pragma mark Accents

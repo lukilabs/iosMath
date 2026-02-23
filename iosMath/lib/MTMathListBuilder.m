@@ -286,7 +286,7 @@ NSString *const MTParseError = @"ParseError";
     NSMutableString* mutable = [NSMutableString string];
     while([self hasCharacters]) {
         unichar ch = [self getNextCharacter];
-        if (ch == '#' || (ch >= 'A' && ch <= 'F') || (ch >= 'a' && ch <= 'f') || (ch >= '0' && ch <= '9')) {
+        if (ch == '#' || (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9')) {
             [mutable appendString:[NSString stringWithCharacters:&ch length:1]];
         } else {
             // we went too far
@@ -561,10 +561,120 @@ NSString *const MTParseError = @"ParseError";
         MTPhantom* phantom = [[MTPhantom alloc] initWithPhantomType:smashType];
         phantom.innerList = [self buildInternal:true];
         return phantom;
-    } else if ([command isEqualToString:@"boxed"]) {
+    } else if ([command isEqualToString:@"boxed"] || [command isEqualToString:@"fbox"]) {
         MTBoxed* boxed = [[MTBoxed alloc] init];
         boxed.innerList = [self buildInternal:true];
         return boxed;
+    } else if ([command isEqualToString:@"cancel"]) {
+        MTCancel* cancel = [[MTCancel alloc] initWithCancelType:kMTCancelForward];
+        cancel.innerList = [self buildInternal:true];
+        return cancel;
+    } else if ([command isEqualToString:@"bcancel"]) {
+        MTCancel* cancel = [[MTCancel alloc] initWithCancelType:kMTCancelBackward];
+        cancel.innerList = [self buildInternal:true];
+        return cancel;
+    } else if ([command isEqualToString:@"xcancel"]) {
+        MTCancel* cancel = [[MTCancel alloc] initWithCancelType:kMTCancelCross];
+        cancel.innerList = [self buildInternal:true];
+        return cancel;
+    } else if ([command isEqualToString:@"sout"]) {
+        MTCancel* cancel = [[MTCancel alloc] initWithCancelType:kMTCancelStrikethrough];
+        cancel.innerList = [self buildInternal:true];
+        return cancel;
+    } else if ([command isEqualToString:@"colorbox"]) {
+        // \colorbox{color}{content} — parse color, create boxed (approximate)
+        NSString* color = [self readColor];
+        (void)color;  // Color rendering deferred — renders as boxed for now
+        MTBoxed* boxed = [[MTBoxed alloc] init];
+        boxed.innerList = [self buildInternal:true];
+        return boxed;
+    } else if ([command isEqualToString:@"fcolorbox"]) {
+        // \fcolorbox{bordercolor}{bgcolor}{content} — parse both colors, create boxed
+        NSString* borderColor = [self readColor];
+        NSString* bgColor = [self readColor];
+        (void)borderColor;
+        (void)bgColor;
+        MTBoxed* boxed = [[MTBoxed alloc] init];
+        boxed.innerList = [self buildInternal:true];
+        return boxed;
+    } else if ([command isEqualToString:@"rlap"]) {
+        MTPhantom* phantom = [[MTPhantom alloc] initWithPhantomType:kMTPhantomLapRight];
+        phantom.innerList = [self buildInternal:true];
+        return phantom;
+    } else if ([command isEqualToString:@"llap"]) {
+        MTPhantom* phantom = [[MTPhantom alloc] initWithPhantomType:kMTPhantomLapLeft];
+        phantom.innerList = [self buildInternal:true];
+        return phantom;
+    } else if ([command isEqualToString:@"clap"]) {
+        MTPhantom* phantom = [[MTPhantom alloc] initWithPhantomType:kMTPhantomLapCenter];
+        phantom.innerList = [self buildInternal:true];
+        return phantom;
+    } else if ([command isEqualToString:@"overset"] || [command isEqualToString:@"stackrel"]) {
+        // \overset{top}{base} and \stackrel{top}{base}
+        MTMathList* top = [self buildInternal:true];
+        MTMathList* base = [self buildInternal:true];
+        MTInner* inner = [MTInner new];
+        inner.innerList = base;
+        inner.superScript = top;
+        return inner;
+    } else if ([command isEqualToString:@"underset"]) {
+        // \underset{bottom}{base}
+        MTMathList* bottom = [self buildInternal:true];
+        MTMathList* base = [self buildInternal:true];
+        MTInner* inner = [MTInner new];
+        inner.innerList = base;
+        inner.subScript = bottom;
+        return inner;
+    } else if ([command isEqualToString:@"dfrac"]) {
+        MTFraction* frac = [MTFraction new];
+        MTMathList* num = [self buildInternal:true];
+        [num insertAtom:[[MTMathStyle alloc] initWithStyle:kMTLineStyleDisplay] atIndex:0];
+        frac.numerator = num;
+        MTMathList* denom = [self buildInternal:true];
+        [denom insertAtom:[[MTMathStyle alloc] initWithStyle:kMTLineStyleDisplay] atIndex:0];
+        frac.denominator = denom;
+        return frac;
+    } else if ([command isEqualToString:@"tfrac"]) {
+        MTFraction* frac = [MTFraction new];
+        MTMathList* num = [self buildInternal:true];
+        [num insertAtom:[[MTMathStyle alloc] initWithStyle:kMTLineStyleText] atIndex:0];
+        frac.numerator = num;
+        MTMathList* denom = [self buildInternal:true];
+        [denom insertAtom:[[MTMathStyle alloc] initWithStyle:kMTLineStyleText] atIndex:0];
+        frac.denominator = denom;
+        return frac;
+    } else if ([command isEqualToString:@"cfrac"]) {
+        // Continued fraction — display style, centered numerator
+        MTFraction* frac = [MTFraction new];
+        MTMathList* num = [self buildInternal:true];
+        [num insertAtom:[[MTMathStyle alloc] initWithStyle:kMTLineStyleDisplay] atIndex:0];
+        frac.numerator = num;
+        MTMathList* denom = [self buildInternal:true];
+        [denom insertAtom:[[MTMathStyle alloc] initWithStyle:kMTLineStyleDisplay] atIndex:0];
+        frac.denominator = denom;
+        return frac;
+    } else if ([command isEqualToString:@"dbinom"]) {
+        MTFraction* frac = [[MTFraction alloc] initWithRule:NO];
+        MTMathList* num = [self buildInternal:true];
+        [num insertAtom:[[MTMathStyle alloc] initWithStyle:kMTLineStyleDisplay] atIndex:0];
+        frac.numerator = num;
+        MTMathList* denom = [self buildInternal:true];
+        [denom insertAtom:[[MTMathStyle alloc] initWithStyle:kMTLineStyleDisplay] atIndex:0];
+        frac.denominator = denom;
+        frac.leftDelimiter = @"(";
+        frac.rightDelimiter = @")";
+        return frac;
+    } else if ([command isEqualToString:@"tbinom"]) {
+        MTFraction* frac = [[MTFraction alloc] initWithRule:NO];
+        MTMathList* num = [self buildInternal:true];
+        [num insertAtom:[[MTMathStyle alloc] initWithStyle:kMTLineStyleText] atIndex:0];
+        frac.numerator = num;
+        MTMathList* denom = [self buildInternal:true];
+        [denom insertAtom:[[MTMathStyle alloc] initWithStyle:kMTLineStyleText] atIndex:0];
+        frac.denominator = denom;
+        frac.leftDelimiter = @"(";
+        frac.rightDelimiter = @")";
+        return frac;
     } else if ([command isEqualToString:@"tiny"] || [command isEqualToString:@"scriptsize"]) {
         return [[MTMathStyle alloc] initWithStyle:kMTLineStyleScriptScript];
     } else if ([command isEqualToString:@"footnotesize"] || [command isEqualToString:@"small"]) {

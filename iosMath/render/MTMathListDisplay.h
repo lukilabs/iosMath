@@ -207,4 +207,17 @@ typedef NS_ENUM(unsigned int, MTLinePosition)  {
 
 @end
 
+/// Rendering of cancelled content — draws a strikethrough line over the inner display
+@interface MTCancelDisplay : MTDisplay
+
+- (instancetype)init NS_UNAVAILABLE;
+
+/** The inner display that is cancelled. */
+@property (nonatomic, readonly) MTMathListDisplay* inner;
+
+/** The type of cancellation line. */
+@property (nonatomic, readonly) MTCancelType cancelType;
+
+@end
+
 NS_ASSUME_NONNULL_END

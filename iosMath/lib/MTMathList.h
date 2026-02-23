@@ -62,6 +62,8 @@ typedef NS_ENUM(NSUInteger, MTMathAtomType)
     kMTMathAtomPhantom,
     /// A boxed atom - renders content with a rectangular border
     kMTMathAtomBoxed,
+    /// A cancel atom - renders content with a strikethrough line
+    kMTMathAtomCancel,
 
     // Atoms after this point do not support subscripts or superscripts
     
@@ -298,6 +300,12 @@ typedef NS_ENUM(NSUInteger, MTPhantomType)
     kMTPhantomSmashBottom,
     /// Smash both — visible, zeroes ascent and descent
     kMTPhantomSmashBoth,
+    /// Right lap — visible, zero width (content extends right)
+    kMTPhantomLapRight,
+    /// Left lap — visible, zero width (content extends left)
+    kMTPhantomLapLeft,
+    /// Center lap — visible, zero width (content centered)
+    kMTPhantomLapCenter,
 };
 
 /** An atom representing a phantom or smash. */
@@ -325,6 +333,39 @@ typedef NS_ENUM(NSUInteger, MTPhantomType)
 
 /// The inner math list
 @property (nonatomic, nullable) MTMathList* innerList;
+
+@end
+
+/**
+ @typedef MTCancelType
+ @brief The type of cancellation line.
+ */
+typedef NS_ENUM(NSUInteger, MTCancelType)
+{
+    /// Forward diagonal (bottom-left to top-right) — \cancel
+    kMTCancelForward,
+    /// Backward diagonal (top-left to bottom-right) — \bcancel
+    kMTCancelBackward,
+    /// X-shaped (both diagonals) — \xcancel
+    kMTCancelCross,
+    /// Horizontal strikethrough — \sout
+    kMTCancelStrikethrough,
+};
+
+/** An atom representing cancelled/struck-out content. */
+@interface MTCancel : MTMathAtom
+
+/// Creates a cancel with forward diagonal type.
+- (instancetype)init;
+
+/// Creates a cancel with the given type.
+- (instancetype)initWithCancelType:(MTCancelType) cancelType NS_DESIGNATED_INITIALIZER;
+
+/// The inner math list
+@property (nonatomic, nullable) MTMathList* innerList;
+
+/// The type of cancellation
+@property (nonatomic, readonly) MTCancelType cancelType;
 
 @end
 
