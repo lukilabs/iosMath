@@ -1038,8 +1038,12 @@ static void getBboxDetails(CGRect bbox, CGFloat* ascent, CGFloat* descent)
     NSArray* spaceArray = getInterElementSpaces()[leftIndex];
     NSNumber* spaceTypeObj = spaceArray[rightIndex];
     MTInterElementSpaceType spaceType = spaceTypeObj.intValue;
-    NSAssert(spaceType != kMTSpaceInvalid, @"Invalid space between %lu and %lu", (unsigned long)left, (unsigned long)right);
-    
+    if (spaceType == kMTSpaceInvalid) {
+        // Treat invalid inter-element spacing as zero (e.g. relation followed by binary operator).
+        // In TeX, the binary operator would be reclassified as ordinary in this context.
+        return 0;
+    }
+
     int spaceMultipler = [self getSpacingInMu:spaceType];
     if (spaceMultipler > 0) {
         // 1 em = size of font in pt. space multipler is in multiples mu or 1/18 em
