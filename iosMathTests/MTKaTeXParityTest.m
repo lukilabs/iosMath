@@ -1092,4 +1092,59 @@
     [self assertParses:@"x_i'"];
 }
 
+#pragma mark - Color (named colors + shorthand)
+
+- (void)testColorNamedBlue
+{
+    // \color{blue}{x} — named color should parse and produce a color atom
+    MTMathList *list = [self parseNoError:@"\\color{blue}{x^2}"];
+    XCTAssertGreaterThanOrEqual(list.atoms.count, 1);
+    MTMathAtom *atom = list.atoms[0];
+    XCTAssertEqual(atom.type, kMTMathAtomColor);
+    MTMathColor *colorAtom = (MTMathColor *)atom;
+    XCTAssertEqualObjects(colorAtom.colorString, @"blue");
+    XCTAssertNotNil(colorAtom.innerList);
+}
+
+- (void)testColorHex
+{
+    [self assertParses:@"\\color{#FF0000}{y}"];
+}
+
+- (void)testTextcolor
+{
+    // \textcolor is an alias for \color
+    MTMathList *list = [self parseNoError:@"\\textcolor{red}{a+b}"];
+    XCTAssertGreaterThanOrEqual(list.atoms.count, 1);
+    XCTAssertEqual(list.atoms[0].type, kMTMathAtomColor);
+}
+
+- (void)testColorShorthandBlue
+{
+    // \blue{x} — shorthand macro
+    [self assertParses:@"\\blue{(a/b)}^2"];
+}
+
+- (void)testColorShorthandRed
+{
+    [self assertParses:@"\\red{x} + \\green{y}"];
+}
+
+- (void)testColorShorthandAllNames
+{
+    // Verify all color shorthand macros parse
+    NSArray *colors = @[@"red", @"blue", @"green", @"cyan", @"magenta", @"yellow",
+                        @"orange", @"purple", @"brown", @"black", @"white", @"gray",
+                        @"teal", @"pink", @"olive", @"violet"];
+    for (NSString *c in colors) {
+        NSString *latex = [NSString stringWithFormat:@"\\%@{x}", c];
+        [self assertParses:latex];
+    }
+}
+
+- (void)testColorInExpression
+{
+    [self assertParses:@"\\color{blue}{(a/b)}^2 + \\color{red}{c}"];
+}
+
 @end

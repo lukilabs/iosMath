@@ -582,8 +582,8 @@ NSString *const MTParseError = @"ParseError";
             }
         }
         return table;
-    } else if ([command isEqualToString:@"color"]) {
-        // A color command has 2 arguments
+    } else if ([command isEqualToString:@"color"] || [command isEqualToString:@"textcolor"]) {
+        // A color command has 2 arguments: \color{colorname}{content}
         MTMathColor* mathColor = [[MTMathColor alloc] init];
         mathColor.colorString = [self readColor];
         mathColor.innerList = [self buildInternal:true];
@@ -1034,6 +1034,24 @@ NSString *const MTParseError = @"ParseError";
 
     // Proof trees (simple approximation using fraction bar)
     [self defineMacro:@"infer" params:2 expansion:@"\\dfrac{#2}{#1}"];
+
+    // Color shorthand commands (xcolor package names)
+    [self defineMacro:@"red" params:1 expansion:@"\\color{red}{#1}"];
+    [self defineMacro:@"blue" params:1 expansion:@"\\color{blue}{#1}"];
+    [self defineMacro:@"green" params:1 expansion:@"\\color{green}{#1}"];
+    [self defineMacro:@"cyan" params:1 expansion:@"\\color{cyan}{#1}"];
+    [self defineMacro:@"magenta" params:1 expansion:@"\\color{magenta}{#1}"];
+    [self defineMacro:@"yellow" params:1 expansion:@"\\color{yellow}{#1}"];
+    [self defineMacro:@"orange" params:1 expansion:@"\\color{orange}{#1}"];
+    [self defineMacro:@"purple" params:1 expansion:@"\\color{purple}{#1}"];
+    [self defineMacro:@"brown" params:1 expansion:@"\\color{brown}{#1}"];
+    [self defineMacro:@"black" params:1 expansion:@"\\color{black}{#1}"];
+    [self defineMacro:@"white" params:1 expansion:@"\\color{white}{#1}"];
+    [self defineMacro:@"gray" params:1 expansion:@"\\color{gray}{#1}"];
+    [self defineMacro:@"teal" params:1 expansion:@"\\color{teal}{#1}"];
+    [self defineMacro:@"pink" params:1 expansion:@"\\color{pink}{#1}"];
+    [self defineMacro:@"olive" params:1 expansion:@"\\color{olive}{#1}"];
+    [self defineMacro:@"violet" params:1 expansion:@"\\color{violet}{#1}"];
 }
 
 #pragma mark - Macro System
