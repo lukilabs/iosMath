@@ -1049,4 +1049,47 @@
     [self assertParses:latex];
 }
 
+#pragma mark - Prime / Apostrophe
+
+- (void)testPrimeSingle
+{
+    // f'(x) — apostrophe as ^\prime
+    MTMathList *list = [self parseNoError:@"f'(x)"];
+    XCTAssertGreaterThanOrEqual(list.atoms.count, 1);
+    // f should have a superscript containing \prime
+    MTMathAtom *f = list.atoms[0];
+    XCTAssertNotNil(f.superScript, @"f should have a superscript from '");
+    XCTAssertEqual(f.superScript.atoms.count, 1);
+    XCTAssertEqualObjects(f.superScript.atoms[0].nucleus, @"\u2032");
+}
+
+- (void)testPrimeDouble
+{
+    // f''(x) — two consecutive apostrophes
+    MTMathList *list = [self parseNoError:@"f''(x)"];
+    MTMathAtom *f = list.atoms[0];
+    XCTAssertNotNil(f.superScript);
+    XCTAssertEqual(f.superScript.atoms.count, 2, @"f'' should have two prime atoms in superscript");
+}
+
+- (void)testPrimeTriple
+{
+    // f'''(x)
+    MTMathList *list = [self parseNoError:@"f'''(x)"];
+    MTMathAtom *f = list.atoms[0];
+    XCTAssertNotNil(f.superScript);
+    XCTAssertEqual(f.superScript.atoms.count, 3);
+}
+
+- (void)testPrimeDerivativeExpression
+{
+    [self assertParses:@"f'(x) = \\lim_{h \\to 0} \\frac{f(x+h) - f(x)}{h}"];
+}
+
+- (void)testPrimeWithSubscript
+{
+    // x_i' — prime on atom that already has subscript
+    [self assertParses:@"x_i'"];
+}
+
 @end

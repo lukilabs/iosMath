@@ -235,6 +235,31 @@ NSString *const MTParseError = @"ParseError";
                 MTMathAtom* table = [self buildTable:nil firstList:list row:NO];
                 return [MTMathList mathListWithAtoms:table, nil];
             }
+        } else if (ch == '\'' || ch == 0x2019) {
+            // ' is a shorthand for ^\prime in LaTeX. Consume consecutive primes.
+            MTMathList* superList = [MTMathList new];
+            [superList addAtom:[MTMathAtomFactory atomForLatexSymbolName:@"prime"]];
+            while ([self hasCharacters]) {
+                unichar next = [self getNextCharacter];
+                if (next == '\'' || next == 0x2019) {
+                    [superList addAtom:[MTMathAtomFactory atomForLatexSymbolName:@"prime"]];
+                } else {
+                    [self unlookCharacter];
+                    break;
+                }
+            }
+            if (!prevAtom || prevAtom.superScript || !prevAtom.scriptsAllowed) {
+                prevAtom = [MTMathAtom atomWithType:kMTMathAtomOrdinary value:@""];
+                [list addAtom:prevAtom];
+            }
+            if (prevAtom.superScript) {
+                // Already has a superscript — append primes to it
+                MTMathList* existing = prevAtom.superScript;
+                [existing append:superList];
+            } else {
+                prevAtom.superScript = superList;
+            }
+            continue;
         } else if (_spacesAllowed && ch == ' ') {
             // If spaces are allowed then spaces do not need escaping with a \ before being used.
             atom = [MTMathAtomFactory atomForLatexSymbolName:@" "];
