@@ -864,11 +864,14 @@ static BOOL isIos6Supported() {
 
     [self.textColor setStroke];
 
-    // Draw a rectangular border around the content with padding
-    CGFloat x = self.position.x - self.padding;
-    CGFloat y = self.position.y - self.inner.descent - self.padding;
-    CGFloat w = self.inner.width + 2 * self.padding;
-    CGFloat h = self.inner.ascent + self.inner.descent + 2 * self.padding;
+    // Draw a rectangular border around the content with padding.
+    // The border starts at position.x (with halfLine inset) so the stroke
+    // stays within the display's width bounds.
+    CGFloat halfLine = self.lineThickness / 2;
+    CGFloat x = self.position.x + halfLine;
+    CGFloat y = self.position.y - self.inner.descent - self.padding - halfLine;
+    CGFloat w = self.inner.width + 2 * self.padding + self.lineThickness;
+    CGFloat h = self.inner.ascent + self.inner.descent + 2 * self.padding + self.lineThickness;
     CGRect borderRect = CGRectMake(x, y, w, h);
 
     MTBezierPath* path = [MTBezierPath bezierPathWithRect:borderRect];
@@ -881,7 +884,7 @@ static BOOL isIos6Supported() {
 - (void)setPosition:(CGPoint)position
 {
     super.position = position;
-    self.inner.position = CGPointMake(position.x + self.padding, position.y);
+    self.inner.position = CGPointMake(position.x + self.padding + self.lineThickness, position.y);
 }
 
 @end
