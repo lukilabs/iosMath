@@ -53,6 +53,16 @@ NS_ASSUME_NONNULL_BEGIN
 // command
 @property (nonatomic, nullable) MTColor *localTextColor;
 
+/// The actual visual ascent of rendered content, ignoring metric adjustments
+/// from \smash. For most displays this equals `ascent`. For smash displays
+/// this returns the inner content's true ascent.
+@property (nonatomic, readonly) CGFloat visualAscent;
+
+/// The actual visual descent of rendered content, ignoring metric adjustments
+/// from \smash. For most displays this equals `descent`. For smash displays
+/// this returns the inner content's true descent.
+@property (nonatomic, readonly) CGFloat visualDescent;
+
 @end
 
 /// A rendering of a single CTLine as an MTDisplay

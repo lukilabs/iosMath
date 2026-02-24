@@ -104,4 +104,10 @@ IB_DESIGNABLE @interface MTMathUILabel : MTView
 /** The internal display of the MTMathUILabel. This is for advanced use only. */
 @property (nonatomic, readonly, nullable) MTMathListDisplay* displayList;
 
+/** When YES, sizeThatFits and layout use the visual bounds of rendered content,
+ which includes the full extent of smashed (\smash) content. When NO (default),
+ the standard metric bounds are used (respecting \smash zeroing). Set to YES
+ for standalone formula rendering where content should never be clipped. */
+@property (nonatomic) BOOL usesVisualBounds;
+
 @end

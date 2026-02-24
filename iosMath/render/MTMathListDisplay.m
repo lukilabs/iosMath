@@ -52,6 +52,16 @@ static BOOL isIos6Supported() {
     return CGRectMake(self.position.x, self.position.y - self.descent, self.width, self.ascent + self.descent);
 }
 
+- (CGFloat) visualAscent
+{
+    return self.ascent;
+}
+
+- (CGFloat) visualDescent
+{
+    return self.descent;
+}
+
 // Debug method skipped for MAC.
 #if TARGET_OS_IPHONE
 - (id)debugQuickLookObject
@@ -251,6 +261,25 @@ static BOOL isIos6Supported() {
     self.width = max_width;
 }
 
+- (CGFloat) visualAscent
+{
+    CGFloat max_ascent = 0;
+    for (MTDisplay* atom in self.subDisplays) {
+        CGFloat ascent = MAX(0, atom.position.y + atom.visualAscent);
+        max_ascent = MAX(max_ascent, ascent);
+    }
+    return max_ascent;
+}
+
+- (CGFloat) visualDescent
+{
+    CGFloat max_descent = 0;
+    for (MTDisplay* atom in self.subDisplays) {
+        CGFloat descent = MAX(0, -(atom.position.y - atom.visualDescent));
+        max_descent = MAX(max_descent, descent);
+    }
+    return max_descent;
+}
 
 @end
 
@@ -828,6 +857,30 @@ static BOOL isIos6Supported() {
 {
     super.position = position;
     self.inner.position = CGPointMake(position.x, position.y);
+}
+
+- (CGFloat) visualAscent
+{
+    switch (_phantomType) {
+        case kMTPhantomSmashTop:
+        case kMTPhantomSmashBoth:
+            // Smash zeroed the ascent, but the inner content still renders at full height
+            return self.inner.ascent;
+        default:
+            return self.ascent;
+    }
+}
+
+- (CGFloat) visualDescent
+{
+    switch (_phantomType) {
+        case kMTPhantomSmashBottom:
+        case kMTPhantomSmashBoth:
+            // Smash zeroed the descent, but the inner content still renders at full depth
+            return self.inner.descent;
+        default:
+            return self.descent;
+    }
 }
 
 @end

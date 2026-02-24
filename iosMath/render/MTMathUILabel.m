@@ -199,12 +199,14 @@
         
         CGFloat availableHeight = self.bounds.size.height - self.contentInsets.bottom - self.contentInsets.top;
         // center things vertically
-        CGFloat height = _displayList.ascent + _displayList.descent;
+        CGFloat ascent = _usesVisualBounds ? _displayList.visualAscent : _displayList.ascent;
+        CGFloat descent = _usesVisualBounds ? _displayList.visualDescent : _displayList.descent;
+        CGFloat height = ascent + descent;
         if (height < _fontSize/2) {
             // Set the height to the half the size of the font
             height = _fontSize/2;
         }
-        CGFloat textY = (availableHeight - height) / 2 + _displayList.descent + self.contentInsets.bottom;
+        CGFloat textY = (availableHeight - height) / 2 + descent + self.contentInsets.bottom;
         _displayList.position = CGPointMake(textX, textY);
     } else {
         _displayList = nil;
@@ -227,9 +229,11 @@
     if (_mathList) {
         displayList = [MTTypesetter createLineForMathList:_mathList font:_font style:self.currentStyle];
     }
-    
+
+    CGFloat ascent = _usesVisualBounds ? displayList.visualAscent : displayList.ascent;
+    CGFloat descent = _usesVisualBounds ? displayList.visualDescent : displayList.descent;
     size.width = displayList.width + self.contentInsets.left + self.contentInsets.right;
-    size.height = displayList.ascent + displayList.descent + self.contentInsets.top + self.contentInsets.bottom;
+    size.height = ascent + descent + self.contentInsets.top + self.contentInsets.bottom;
     return size;
 }
 
