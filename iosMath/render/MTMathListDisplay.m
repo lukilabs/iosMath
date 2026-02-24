@@ -1017,7 +1017,7 @@ static void drawArrowHead(CGContextRef context, CGPoint tip, CGFloat size, BOOL 
     CGContextStrokePath(context);
 
     if (isDouble) {
-        CGFloat offset = pointsRight ? -size * 0.4 : size * 0.4;
+        CGFloat offset = pointsRight ? -size * 0.85 : size * 0.85;
         CGPoint tip2 = CGPointMake(tip.x + offset, tip.y);
         CGContextMoveToPoint(context, tip2.x - dx, tip2.y + dy);
         CGContextAddLineToPoint(context, tip2.x, tip2.y);
@@ -1027,18 +1027,18 @@ static void drawArrowHead(CGContextRef context, CGPoint tip, CGFloat size, BOOL 
 }
 
 static void drawHookEnd(CGContextRef context, CGPoint point, CGFloat radius, BOOL isRight) {
+    CGPoint center = CGPointMake(point.x, point.y + radius);
     CGFloat startAngle, endAngle;
-    CGPoint center;
     if (isRight) {
-        center = CGPointMake(point.x, point.y - radius);
-        startAngle = M_PI / 2.0;
-        endAngle = -M_PI / 2.0;
-    } else {
-        center = CGPointMake(point.x, point.y - radius);
+        // CCW from -π/2 → 0 → π/2 = right-curving semicircle
         startAngle = -M_PI / 2.0;
         endAngle = M_PI / 2.0;
+    } else {
+        // CCW from π/2 → π → -π/2 = left-curving semicircle
+        startAngle = M_PI / 2.0;
+        endAngle = -M_PI / 2.0;
     }
-    CGContextAddArc(context, center.x, center.y, radius, startAngle, endAngle, isRight ? 1 : 0);
+    CGContextAddArc(context, center.x, center.y, radius, startAngle, endAngle, 0);
     CGContextStrokePath(context);
 }
 
