@@ -177,6 +177,8 @@
 {
     [self assertParses:@"\\iint_{D} f(x,y) dA"];
     [self assertParses:@"\\iiint_{V} f dV"];
+    [self assertParses:@"\\oiint_{S} \\vec{F} \\cdot d\\vec{S}"];
+    [self assertParses:@"\\oiiint_{V} f dV"];
 }
 
 #pragma mark - Representative Complex Formulas (parse only)
@@ -851,6 +853,199 @@
 - (void)testPhase5Combined
 {
     NSString *latex = @"\\def\\R{\\mathbb{R}} \\newcommand{\\norm}[1]{\\left\\|#1\\right\\|} \\let\\ra=\\rightarrow f: \\R \\ra \\R, \\norm{x}";
+    [self assertParses:latex];
+}
+
+#pragma mark - Phase 5: Tag & Notag
+
+- (void)testTag
+{
+    [self assertParses:@"E = mc^2 \\tag{1}"];
+}
+
+- (void)testTagStar
+{
+    [self assertParses:@"a + b = c \\tag*{eq. 1}"];
+}
+
+- (void)testNotag
+{
+    [self assertParses:@"x = y \\notag"];
+}
+
+#pragma mark - Phase 8: Braket Notation
+
+- (void)testBra
+{
+    [self assertParses:@"\\bra{\\psi}"];
+}
+
+- (void)testKet
+{
+    [self assertParses:@"\\ket{\\phi}"];
+}
+
+- (void)testBraket
+{
+    [self assertParses:@"\\braket{\\psi | \\phi}"];
+}
+
+- (void)testBraBigVariant
+{
+    [self assertParses:@"\\Bra{\\psi}"];
+}
+
+- (void)testKetBigVariant
+{
+    [self assertParses:@"\\Ket{\\phi}"];
+}
+
+- (void)testSetBraket
+{
+    [self assertParses:@"\\Set{x \\in \\mathbb{R} : x > 0}"];
+}
+
+- (void)testBraketCombined
+{
+    [self assertParses:@"\\bra{\\psi} A \\ket{\\phi}"];
+}
+
+#pragma mark - Phase 8: Physics Package
+
+- (void)testAbs
+{
+    [self assertParses:@"\\abs{x}"];
+}
+
+- (void)testNorm
+{
+    [self assertParses:@"\\norm{v}"];
+}
+
+- (void)testQty
+{
+    [self assertParses:@"\\qty{\\frac{a}{b}}"];
+}
+
+- (void)testDd
+{
+    [self assertParses:@"\\dd{x}"];
+}
+
+- (void)testDv
+{
+    [self assertParses:@"\\dv{f}{x}"];
+}
+
+- (void)testPdv
+{
+    [self assertParses:@"\\pdv{f}{x}"];
+}
+
+- (void)testGrad
+{
+    [self assertParses:@"\\grad f"];
+}
+
+- (void)testCurlPhysics
+{
+    [self assertParses:@"\\curl F"];
+}
+
+- (void)testDivergence
+{
+    [self assertParses:@"\\divergence F"];
+}
+
+- (void)testCross
+{
+    [self assertParses:@"A \\cross B"];
+}
+
+- (void)testVb
+{
+    [self assertParses:@"\\vb{F}"];
+}
+
+- (void)testVu
+{
+    [self assertParses:@"\\vu{n}"];
+}
+
+- (void)testPhysicsCombined
+{
+    NSString *latex = @"\\norm{\\grad f} = \\abs{\\dv{f}{x}}";
+    [self assertParses:latex];
+}
+
+#pragma mark - Phase 8: Mathtools Symbols
+
+- (void)testColoneqq
+{
+    [self assertParses:@"f(x) \\coloneqq x^2"];
+}
+
+- (void)testColoneqqCapital
+{
+    [self assertParses:@"A \\Coloneqq B"];
+}
+
+- (void)testEqqcolon
+{
+    [self assertParses:@"x^2 \\eqqcolon f(x)"];
+}
+
+- (void)testColonapprox
+{
+    [self assertParses:@"f(x) \\colonapprox g(x)"];
+}
+
+- (void)testDblcolon
+{
+    [self assertParses:@"A \\dblcolon B"];
+}
+
+#pragma mark - Phase 8: Proof Trees
+
+- (void)testInfer
+{
+    [self assertParses:@"\\infer{C}{A \\quad B}"];
+}
+
+- (void)testInferNested
+{
+    [self assertParses:@"\\infer{C}{\\infer{A}{D \\quad E} \\quad B}"];
+}
+
+#pragma mark - Phase 8: Blackboard Bold
+
+- (void)testBlackboardBoldLetters
+{
+    // Verify \mathbb works for common letters
+    [self assertParses:@"\\mathbb{R}"];
+    [self assertParses:@"\\mathbb{N}"];
+    [self assertParses:@"\\mathbb{Z}"];
+    [self assertParses:@"\\mathbb{Q}"];
+    [self assertParses:@"\\mathbb{C}"];
+}
+
+- (void)testBlackboardBold1
+{
+    // \mathbb{1} — indicator function (font coverage dependent)
+    [self assertParses:@"\\mathbb{1}"];
+}
+
+#pragma mark - Phase 8: Combined Stress Test
+
+- (void)testPhase8Combined
+{
+    NSString *latex = @"\\bra{\\psi} \\hat{H} \\ket{\\phi} = E \\braket{\\psi | \\phi} \\tag{Dirac}";
+    [self assertParses:latex];
+}
+
+- (void)testPhase8PhysicsFormula
+{
+    NSString *latex = @"\\divergence \\vb{E} = \\frac{\\rho}{\\epsilon_0} \\tag{Gauss}";
     [self assertParses:latex];
 }
 

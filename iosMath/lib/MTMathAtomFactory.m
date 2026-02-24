@@ -852,6 +852,8 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
                      // --- Additional large operators ---
                      @"iint" : [MTMathAtomFactory operatorWithName:@"\u222C" limits:NO],
                      @"iiint" : [MTMathAtomFactory operatorWithName:@"\u222D" limits:NO],
+                     @"oiint" : [MTMathAtomFactory operatorWithName:@"\u222F" limits:NO],
+                     @"oiiint" : [MTMathAtomFactory operatorWithName:@"\u2230" limits:NO],
 
                      }];
         
@@ -1038,6 +1040,10 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
                    @"rceil" : @"\u2309",
                    @"lfloor" : @"\u230A",
                    @"rfloor" : @"\u230B",
+                   @"lvert" : @"|",
+                   @"rvert" : @"|",
+                   @"lVert" : @"\u2016",
+                   @"rVert" : @"\u2016",
                    };
     }
     return delims;

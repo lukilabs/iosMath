@@ -70,6 +70,7 @@ NSString *const MTParseError = @"ParseError";
         _currentFontStyle = kMTFontStyleDefault;
         _macros = [NSMutableDictionary dictionary];
         _expansionDepth = 0;
+        [self setupBuiltinMacros];
     }
     return self;
 }
@@ -803,6 +804,18 @@ NSString *const MTParseError = @"ParseError";
             return nil;
         }
         return [MTMathAtomFactory operatorWithName:operatorName limits:limits];
+    } else if ([command isEqualToString:@"tag"]) {
+        // Check for \tag* variant (star is not part of the command name)
+        if ([self hasCharacters]) {
+            unichar next = [self getNextCharacter];
+            if (next != '*') {
+                [self unlookCharacter];
+            }
+        }
+        return [self parseTagCommand];
+    } else if ([command isEqualToString:@"notag"]) {
+        // No-op — iosMath has no auto-numbering
+        return [[MTMathSpace alloc] initWithSpace:0];
     } else if ([command isEqualToString:@"def"] || [command isEqualToString:@"gdef"]) {
         return [self parseDefCommand];
     } else if ([command isEqualToString:@"newcommand"] || [command isEqualToString:@"renewcommand"]
@@ -921,6 +934,81 @@ NSString *const MTParseError = @"ParseError";
         return true;
     }
     return false;
+}
+
+#pragma mark - Tag
+
+/// Parse \tag{text} — renders as right-spaced parenthesized text: \qquad\text{(text)}
+- (MTMathAtom*) parseTagCommand
+{
+    NSString* tagText = [self readRawBraceGroup];
+    if (!tagText) return nil;
+
+    // Build the tag as: \qquad\text{(tagText)}
+    NSString* expansion = [NSString stringWithFormat:@"\\qquad\\text{(%@)}", tagText];
+    MTMathListBuilder* subBuilder = [[MTMathListBuilder alloc] initWithString:expansion];
+    subBuilder->_macros = _macros;
+    subBuilder->_expansionDepth = _expansionDepth;
+    MTMathList* result = [subBuilder build];
+
+    if (subBuilder.error) {
+        if (!_error) _error = subBuilder.error;
+        return nil;
+    }
+    if (!result || result.atoms.count == 0) {
+        return [[MTMathSpace alloc] initWithSpace:0];
+    }
+    if (result.atoms.count == 1) {
+        return result.atoms[0];
+    }
+    MTInner* inner = [MTInner new];
+    inner.innerList = result;
+    return inner;
+}
+
+#pragma mark - Built-in Macros
+
+- (void)defineMacro:(NSString*)name params:(NSUInteger)n expansion:(NSString*)exp
+{
+    MTMacroDefinition* m = [[MTMacroDefinition alloc] init];
+    m.expansion = exp;
+    m.numParameters = n;
+    _macros[name] = m;
+}
+
+- (void)setupBuiltinMacros
+{
+    // Braket notation
+    [self defineMacro:@"bra" params:1 expansion:@"\\langle #1 |"];
+    [self defineMacro:@"ket" params:1 expansion:@"| #1 \\rangle"];
+    [self defineMacro:@"braket" params:1 expansion:@"\\langle #1 \\rangle"];
+    [self defineMacro:@"Bra" params:1 expansion:@"\\left\\langle #1 \\right|"];
+    [self defineMacro:@"Ket" params:1 expansion:@"\\left| #1 \\right\\rangle"];
+    [self defineMacro:@"Set" params:1 expansion:@"\\left\\{ #1 \\right\\}"];
+
+    // Physics package
+    [self defineMacro:@"abs" params:1 expansion:@"\\left| #1 \\right|"];
+    [self defineMacro:@"norm" params:1 expansion:@"\\left\\| #1 \\right\\|"];
+    [self defineMacro:@"qty" params:1 expansion:@"\\left( #1 \\right)"];
+    [self defineMacro:@"dd" params:1 expansion:@"\\mathrm{d}#1"];
+    [self defineMacro:@"dv" params:2 expansion:@"\\frac{\\mathrm{d}#1}{\\mathrm{d}#2}"];
+    [self defineMacro:@"pdv" params:2 expansion:@"\\frac{\\partial #1}{\\partial #2}"];
+    [self defineMacro:@"grad" params:0 expansion:@"\\nabla"];
+    [self defineMacro:@"curl" params:0 expansion:@"\\nabla \\times"];
+    [self defineMacro:@"divergence" params:0 expansion:@"\\nabla \\cdot"];
+    [self defineMacro:@"cross" params:0 expansion:@"\\times"];
+    [self defineMacro:@"vb" params:1 expansion:@"\\mathbf{#1}"];
+    [self defineMacro:@"vu" params:1 expansion:@"\\hat{\\mathbf{#1}}"];
+
+    // mathtools symbols (composite approximations)
+    [self defineMacro:@"coloneqq" params:0 expansion:@":\\!\\!="];
+    [self defineMacro:@"Coloneqq" params:0 expansion:@"::\\!\\!="];
+    [self defineMacro:@"eqqcolon" params:0 expansion:@"=\\!\\!:"];
+    [self defineMacro:@"colonapprox" params:0 expansion:@":\\!\\!\\approx"];
+    [self defineMacro:@"dblcolon" params:0 expansion:@":\\!\\!:"];
+
+    // Proof trees (simple approximation using fraction bar)
+    [self defineMacro:@"infer" params:2 expansion:@"\\dfrac{#2}{#1}"];
 }
 
 #pragma mark - Macro System
