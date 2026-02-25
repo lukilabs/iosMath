@@ -917,6 +917,25 @@ NSString *const MTParseError = @"ParseError";
         CGFloat muValue = [self readLengthInMu];
         if (_error) return nil;
         return [[MTMathSpace alloc] initWithSpace:muValue];
+    } else if ([command isEqualToString:@"substack"]) {
+        // \substack{rows} command form — parse as \begin{substack}...\end{substack}
+        NSString* braceContent = [self readRawBraceGroup];
+        if (!braceContent) {
+            [self setError:MTParseErrorCharacterNotFound message:@"Missing { for \\substack"];
+            return nil;
+        }
+        NSString* envLatex = [NSString stringWithFormat:@"\\begin{substack} %@ \\end{substack}", braceContent];
+        MTMathListBuilder* subBuilder = [[MTMathListBuilder alloc] initWithString:envLatex];
+        subBuilder->_macros = _macros;
+        MTMathList* result = [subBuilder build];
+        if (subBuilder.error) {
+            if (!_error) _error = subBuilder.error;
+            return nil;
+        }
+        if (result.atoms.count > 0) {
+            return result.atoms[0];
+        }
+        return nil;
     } else if ([command isEqualToString:@"tag"]) {
         // Check for \tag* variant (star is not part of the command name)
         if ([self hasCharacters]) {
@@ -1119,6 +1138,13 @@ NSString *const MTParseError = @"ParseError";
     [self defineMacro:@"eqqcolon" params:0 expansion:@"=\\!\\!:"];
     [self defineMacro:@"colonapprox" params:0 expansion:@":\\!\\!\\approx"];
     [self defineMacro:@"dblcolon" params:0 expansion:@":\\!\\!:"];
+
+    // Common blackboard bold shorthands
+    [self defineMacro:@"R" params:0 expansion:@"\\mathbb{R}"];
+    [self defineMacro:@"N" params:0 expansion:@"\\mathbb{N}"];
+    [self defineMacro:@"Z" params:0 expansion:@"\\mathbb{Z}"];
+    [self defineMacro:@"Q" params:0 expansion:@"\\mathbb{Q}"];
+    [self defineMacro:@"C" params:0 expansion:@"\\mathbb{C}"];
 
     // Proof trees (simple approximation using fraction bar)
     [self defineMacro:@"infer" params:2 expansion:@"\\dfrac{#2}{#1}"];
