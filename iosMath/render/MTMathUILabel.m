@@ -17,6 +17,7 @@
 
 @implementation MTMathUILabel {
     MTLabel* _errorLabel;
+    BOOL _needsTypesetting;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame
@@ -76,12 +77,33 @@
 }
 #endif
 
+- (void) _invalidateTypesetting
+{
+    _needsTypesetting = YES;
+    _displayList = nil;
+    [self invalidateIntrinsicContentSize];
+    [self setNeedsLayout];
+}
+
+- (void) _ensureDisplayList
+{
+    if (!_needsTypesetting) {
+        return;
+    }
+    if (_mathList) {
+        _displayList = [MTTypesetter createLineForMathList:_mathList font:_font style:self.currentStyle];
+        _displayList.textColor = _textColor;
+    } else {
+        _displayList = nil;
+    }
+    _needsTypesetting = NO;
+}
+
 - (void)setFont:(MTFont*)font
 {
     NSParameterAssert(font);
     _font = font;
-    [self invalidateIntrinsicContentSize];
-    [self setNeedsLayout];
+    [self _invalidateTypesetting];
 }
 
 - (void)setFontSize:(CGFloat)fontSize
@@ -94,6 +116,7 @@
 - (void)setContentInsets:(MTEdgeInsets)contentInsets
 {
     _contentInsets = contentInsets;
+    // Content insets don't affect the display list, only positioning/sizing.
     [self invalidateIntrinsicContentSize];
     [self setNeedsLayout];
 }
@@ -103,8 +126,7 @@
     _mathList = mathList;
     _error = nil;
     _latex = [MTMathListBuilder mathListToString:mathList];
-    [self invalidateIntrinsicContentSize];
-    [self setNeedsLayout];
+    [self _invalidateTypesetting];
 }
 
 - (void)setLatex:(NSString *)latex
@@ -122,15 +144,13 @@
     } else {
         _errorLabel.hidden = YES;
     }
-    [self invalidateIntrinsicContentSize];
-    [self setNeedsLayout];
+    [self _invalidateTypesetting];
 }
 
 - (void)setLabelMode:(MTMathUILabelMode)labelMode
 {
     _labelMode = labelMode;
-    [self invalidateIntrinsicContentSize];
-    [self setNeedsLayout];
+    [self _invalidateTypesetting];
 }
 
 - (void)setTextColor:(MTColor *)textColor
@@ -144,6 +164,7 @@
 - (void)setTextAlignment:(MTTextAlignment)textAlignment
 {
     _textAlignment = textAlignment;
+    // Alignment doesn't affect the display list, only positioning.
     [self invalidateIntrinsicContentSize];
     [self setNeedsLayout];
 }
@@ -179,10 +200,8 @@
 
 - (void) layoutSubviews
 {
-    if (_mathList) {
-        _displayList = [MTTypesetter createLineForMathList:_mathList font:_font style:self.currentStyle];
-        _displayList.textColor = _textColor;
-        
+    [self _ensureDisplayList];
+    if (_displayList) {
         // Determine x position based on alignment
         CGFloat textX = 0;
         switch (self.textAlignment) {
@@ -196,7 +215,7 @@
                 textX = (self.bounds.size.width - _displayList.width - self.contentInsets.right);
                 break;
         }
-        
+
         CGFloat availableHeight = self.bounds.size.height - self.contentInsets.bottom - self.contentInsets.top;
         // center things vertically
         CGFloat ascent = _usesVisualBounds ? _displayList.visualAscent : _displayList.ascent;
@@ -208,8 +227,6 @@
         }
         CGFloat textY = (availableHeight - height) / 2 + descent + self.contentInsets.bottom;
         _displayList.position = CGPointMake(textX, textY);
-    } else {
-        _displayList = nil;
     }
     _errorLabel.frame = self.bounds;
     [self setNeedsDisplay];
@@ -225,14 +242,11 @@
 
 - (CGSize) sizeThatFits:(CGSize)size
 {
-    MTMathListDisplay* displayList = nil;
-    if (_mathList) {
-        displayList = [MTTypesetter createLineForMathList:_mathList font:_font style:self.currentStyle];
-    }
+    [self _ensureDisplayList];
 
-    CGFloat ascent = _usesVisualBounds ? displayList.visualAscent : displayList.ascent;
-    CGFloat descent = _usesVisualBounds ? displayList.visualDescent : displayList.descent;
-    size.width = displayList.width + self.contentInsets.left + self.contentInsets.right;
+    CGFloat ascent = _usesVisualBounds ? _displayList.visualAscent : _displayList.ascent;
+    CGFloat descent = _usesVisualBounds ? _displayList.visualDescent : _displayList.descent;
+    size.width = _displayList.width + self.contentInsets.left + self.contentInsets.right;
     size.height = ascent + descent + self.contentInsets.top + self.contentInsets.bottom;
     return size;
 }
