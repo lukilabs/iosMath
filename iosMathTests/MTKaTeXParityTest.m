@@ -1147,4 +1147,58 @@
     [self assertParses:@"\\color{blue}{(a/b)}^2 + \\color{red}{c}"];
 }
 
+#pragma mark - drcases single column
+
+- (void)testDrcasesSingleColumn
+{
+    // drcases without & separators should parse (1 column is valid)
+    [self assertParses:@"\\begin{drcases} a \\\\ b \\end{drcases} = c"];
+}
+
+- (void)testCasesSingleColumn
+{
+    [self assertParses:@"\\begin{cases} a \\\\ b \\end{cases}"];
+}
+
+- (void)testRcasesSingleColumn
+{
+    [self assertParses:@"\\begin{rcases} a \\\\ b \\end{rcases}"];
+}
+
+- (void)testDcasesSingleColumn
+{
+    [self assertParses:@"\\begin{dcases} a \\\\ b \\end{dcases}"];
+}
+
+#pragma mark - Font size multiplier parsing
+
+- (void)testFontSizeMultipliers
+{
+    NSDictionary *expected = @{
+        @"tiny": @0.5,
+        @"scriptsize": @0.7,
+        @"footnotesize": @0.8,
+        @"small": @0.9,
+        @"normalsize": @1.0,
+        @"large": @1.2,
+        @"Large": @1.44,
+        @"LARGE": @1.728,
+        @"huge": @2.074,
+        @"Huge": @2.488,
+    };
+    for (NSString *cmd in expected) {
+        NSString *latex = [NSString stringWithFormat:@"\\%@ x", cmd];
+        MTMathList *list = [self parseNoError:latex];
+        XCTAssertTrue(list.atoms.count >= 1, @"Expected atoms for %@", cmd);
+        MTMathAtom *first = list.atoms[0];
+        XCTAssertEqual(first.type, kMTMathAtomStyle, @"First atom should be style for \\%@", cmd);
+        MTMathStyle *style = (MTMathStyle *)first;
+        CGFloat expectedMult = [expected[cmd] doubleValue];
+        XCTAssertEqualWithAccuracy(style.fontSizeMultiplier, expectedMult, 0.001,
+                                   @"Wrong multiplier for \\%@", cmd);
+        XCTAssertEqualObjects(style.sizeCommand, cmd,
+                              @"Wrong sizeCommand for \\%@", cmd);
+    }
+}
+
 @end

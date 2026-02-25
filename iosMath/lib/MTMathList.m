@@ -823,13 +823,20 @@ static NSString* typeToText(MTMathAtomType type) {
 
 @implementation MTMathStyle
 
-- (instancetype)initWithStyle:(MTLineStyle)style
+- (instancetype)initWithStyle:(MTLineStyle)style fontSizeMultiplier:(CGFloat)fontSizeMultiplier sizeCommand:(NSString *)sizeCommand
 {
     self = [super initWithType:kMTMathAtomStyle value:@""];
     if (self) {
         _style = style;
+        _fontSizeMultiplier = fontSizeMultiplier;
+        _sizeCommand = [sizeCommand copy];
     }
     return self;
+}
+
+- (instancetype)initWithStyle:(MTLineStyle)style
+{
+    return [self initWithStyle:style fontSizeMultiplier:0 sizeCommand:nil];
 }
 
 - (instancetype)initWithType:(MTMathAtomType)type value:(NSString *)value
@@ -846,6 +853,8 @@ static NSString* typeToText(MTMathAtomType type) {
 {
     MTMathStyle* op = [super copyWithZone:zone];
     op->_style = self.style;
+    op->_fontSizeMultiplier = self.fontSizeMultiplier;
+    op->_sizeCommand = [self.sizeCommand copy];
     return op;
 }
 

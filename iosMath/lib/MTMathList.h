@@ -474,10 +474,23 @@ typedef NS_ENUM(unsigned int, MTLineStyle)  {
 /** Creates a new `MTMathStyle` with the given style.
  @param style The style to be applied to the rest of the list.
  */
-- (instancetype) initWithStyle:(MTLineStyle) style NS_DESIGNATED_INITIALIZER;
+- (instancetype) initWithStyle:(MTLineStyle) style;
+
+/** Creates a new `MTMathStyle` with the given style, font size multiplier, and command name.
+ @param style The style to be applied to the rest of the list.
+ @param fontSizeMultiplier Font size multiplier relative to the original size (0 means no scaling).
+ @param sizeCommand The original LaTeX command name (e.g. @"tiny") for round-trip serialization.
+ */
+- (instancetype) initWithStyle:(MTLineStyle) style fontSizeMultiplier:(CGFloat) fontSizeMultiplier sizeCommand:(nullable NSString*) sizeCommand NS_DESIGNATED_INITIALIZER;
 
 /** The style represented by this object. */
 @property (nonatomic, readonly) MTLineStyle style;
+
+/** Font size multiplier relative to the original font size. 0 means no scaling (use style's default). */
+@property (nonatomic, readonly) CGFloat fontSizeMultiplier;
+
+/** The original size command name (e.g. @"tiny", @"large") for round-trip serialization. nil for style commands. */
+@property (nonatomic, readonly, nullable) NSString* sizeCommand;
 
 @end
 

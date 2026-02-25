@@ -369,7 +369,7 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
         [table setAlignment:kMTColumnAlignmentLeft forColumn:2];
         return table;
     } else if ([env isEqualToString:@"cases"] || [env isEqualToString:@"dcases"]) {
-        if (table.numColumns != 2) {
+        if (table.numColumns > 2) {
             NSString* message = [NSString stringWithFormat:@"%@ environment can only have 2 columns", env];
             *error = [NSError errorWithDomain:MTParseError code:MTParseErrorInvalidNumColumns userInfo:@{ NSLocalizedDescriptionKey : message }];
             return nil;
@@ -395,7 +395,7 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
         inner.innerList = [MTMathList mathListWithAtoms:space, table, nil];
         return inner;
     } else if ([env isEqualToString:@"rcases"] || [env isEqualToString:@"drcases"]) {
-        if (table.numColumns != 2) {
+        if (table.numColumns > 2) {
             NSString* message = [NSString stringWithFormat:@"%@ environment can only have 2 columns", env];
             *error = [NSError errorWithDomain:MTParseError code:MTParseErrorInvalidNumColumns userInfo:@{ NSLocalizedDescriptionKey : message }];
             return nil;

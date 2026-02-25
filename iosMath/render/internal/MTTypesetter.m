@@ -444,6 +444,7 @@ static void getBboxDetails(CGRect bbox, CGFloat* ascent, CGFloat* descent)
 
 @implementation MTTypesetter {
     MTFont* _font;
+    CGFloat _originalFontSize;
     NSMutableArray<MTDisplay *>* _displayAtoms;
     CGPoint _currentPosition;
     NSMutableAttributedString* _currentLine;
@@ -490,6 +491,7 @@ static void getBboxDetails(CGRect bbox, CGFloat* ascent, CGFloat* descent)
     self = [super init];
     if (self) {
         _font = font;
+        _originalFontSize = font.fontSize;
         _displayAtoms = [NSMutableArray array];
         _currentPosition = CGPointZero;
         _cramped = cramped;
@@ -613,7 +615,14 @@ static void getBboxDetails(CGRect bbox, CGFloat* ascent, CGFloat* descent)
                     [self addDisplayLine];
                 }
                 MTMathStyle* style = (MTMathStyle*) atom;
-                self.style = style.style;
+                if (style.fontSizeMultiplier > 0) {
+                    // Font size command (\tiny, \large, etc.): scale font without changing math style
+                    _font = [_font copyFontWithSize:_originalFontSize * style.fontSizeMultiplier];
+                    _styleFont = [_font copyFontWithSize:[[self class] getStyleSize:_style font:_font]];
+                } else {
+                    // Math style command (\displaystyle, \textstyle, etc.)
+                    self.style = style.style;
+                }
                 // We need to preserve the prevNode for any interelement space changes.
                 // so we skip to the next node.
                 continue;

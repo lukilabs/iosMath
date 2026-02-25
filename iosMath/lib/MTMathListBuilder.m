@@ -745,16 +745,26 @@ NSString *const MTParseError = @"ParseError";
         frac.leftDelimiter = @"(";
         frac.rightDelimiter = @")";
         return frac;
-    } else if ([command isEqualToString:@"tiny"] || [command isEqualToString:@"scriptsize"]) {
-        return [[MTMathStyle alloc] initWithStyle:kMTLineStyleScriptScript];
-    } else if ([command isEqualToString:@"footnotesize"] || [command isEqualToString:@"small"]) {
-        return [[MTMathStyle alloc] initWithStyle:kMTLineStyleScript];
+    } else if ([command isEqualToString:@"tiny"]) {
+        return [[MTMathStyle alloc] initWithStyle:kMTLineStyleText fontSizeMultiplier:0.5 sizeCommand:@"tiny"];
+    } else if ([command isEqualToString:@"scriptsize"]) {
+        return [[MTMathStyle alloc] initWithStyle:kMTLineStyleText fontSizeMultiplier:0.7 sizeCommand:@"scriptsize"];
+    } else if ([command isEqualToString:@"footnotesize"]) {
+        return [[MTMathStyle alloc] initWithStyle:kMTLineStyleText fontSizeMultiplier:0.8 sizeCommand:@"footnotesize"];
+    } else if ([command isEqualToString:@"small"]) {
+        return [[MTMathStyle alloc] initWithStyle:kMTLineStyleText fontSizeMultiplier:0.9 sizeCommand:@"small"];
     } else if ([command isEqualToString:@"normalsize"]) {
-        return [[MTMathStyle alloc] initWithStyle:kMTLineStyleText];
-    } else if ([command isEqualToString:@"large"] || [command isEqualToString:@"Large"]) {
-        return [[MTMathStyle alloc] initWithStyle:kMTLineStyleText];
-    } else if ([command isEqualToString:@"LARGE"] || [command isEqualToString:@"huge"] || [command isEqualToString:@"Huge"]) {
-        return [[MTMathStyle alloc] initWithStyle:kMTLineStyleDisplay];
+        return [[MTMathStyle alloc] initWithStyle:kMTLineStyleText fontSizeMultiplier:1.0 sizeCommand:@"normalsize"];
+    } else if ([command isEqualToString:@"large"]) {
+        return [[MTMathStyle alloc] initWithStyle:kMTLineStyleText fontSizeMultiplier:1.2 sizeCommand:@"large"];
+    } else if ([command isEqualToString:@"Large"]) {
+        return [[MTMathStyle alloc] initWithStyle:kMTLineStyleText fontSizeMultiplier:1.44 sizeCommand:@"Large"];
+    } else if ([command isEqualToString:@"LARGE"]) {
+        return [[MTMathStyle alloc] initWithStyle:kMTLineStyleText fontSizeMultiplier:1.728 sizeCommand:@"LARGE"];
+    } else if ([command isEqualToString:@"huge"]) {
+        return [[MTMathStyle alloc] initWithStyle:kMTLineStyleText fontSizeMultiplier:2.074 sizeCommand:@"huge"];
+    } else if ([command isEqualToString:@"Huge"]) {
+        return [[MTMathStyle alloc] initWithStyle:kMTLineStyleText fontSizeMultiplier:2.488 sizeCommand:@"Huge"];
     } else if ([command isEqualToString:@"big"] || [command isEqualToString:@"Big"]
                || [command isEqualToString:@"bigg"] || [command isEqualToString:@"Bigg"]) {
         // \big — ordinary delimiter (no l/r/m distinction)
@@ -1695,9 +1705,13 @@ NSString *const MTParseError = @"ParseError";
             }
         } else if (atom.type == kMTMathAtomStyle) {
             MTMathStyle* style = (MTMathStyle*) atom;
-            NSDictionary* styleToCommands = [MTMathListBuilder styleToCommands];
-            NSString* command = styleToCommands[@(style.style)];
-            [str appendFormat:@"\\%@ ", command];
+            if (style.sizeCommand) {
+                [str appendFormat:@"\\%@ ", style.sizeCommand];
+            } else {
+                NSDictionary* styleToCommands = [MTMathListBuilder styleToCommands];
+                NSString* command = styleToCommands[@(style.style)];
+                [str appendFormat:@"\\%@ ", command];
+            }
         } else if (atom.nucleus.length == 0) {
             [str appendString:@"{}"];
         } else if ([atom.nucleus isEqualToString:@"\u2236"]) {

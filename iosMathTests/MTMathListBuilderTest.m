@@ -1385,4 +1385,19 @@ static NSArray* getTestDataParseErrors() {
     latex = [MTMathListBuilder mathListToString:list];
     XCTAssertEqualObjects(latex, @"\\sum \\nolimits ", @"%@", desc);
 }
+
+- (void) testFontSizeRoundTrip
+{
+    NSArray* commands = @[@"tiny", @"scriptsize", @"footnotesize", @"small",
+                          @"normalsize", @"large", @"Large", @"LARGE",
+                          @"huge", @"Huge"];
+    for (NSString* cmd in commands) {
+        NSString* input = [NSString stringWithFormat:@"\\%@ x", cmd];
+        MTMathList* list = [MTMathListBuilder buildFromString:input];
+        XCTAssertNotNil(list, @"Failed to parse \\%@", cmd);
+        NSString* output = [MTMathListBuilder mathListToString:list];
+        XCTAssertEqualObjects(output, input, @"Round-trip failed for \\%@", cmd);
+    }
+}
+
 @end
