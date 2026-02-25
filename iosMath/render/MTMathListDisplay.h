@@ -246,11 +246,14 @@ typedef NS_ENUM(unsigned int, MTLinePosition)  {
 
 @end
 
-/// Rendering of a table (array environment) with optional vertical separator lines
+/// Rendering of a table (array environment) with optional vertical/horizontal separator lines
 @interface MTTableDisplay : MTMathListDisplay
 
 /// X positions (in the table's coordinate space) where vertical lines should be drawn.
 @property (nonatomic, readonly) NSArray<NSNumber*>* verticalLineXPositions;
+
+/// Y positions (in the table's coordinate space) where horizontal lines should be drawn.
+@property (nonatomic, readonly) NSArray<NSNumber*>* horizontalLineYPositions;
 
 @end
 

@@ -2076,8 +2076,63 @@ static const CGFloat kJotMultiplier = 0.3; // A jot is 3pt for a 10pt font.
         }
     }
 
-    MTTableDisplay* tableDisplay = [[MTTableDisplay alloc] initWithDisplays:rowDisplays verticalLines:verticalLineXPositions range:table.indexRange];
+    // Compute horizontal line Y positions from row positions
+    NSMutableArray<NSNumber*>* horizontalLineYPositions = [NSMutableArray array];
+    if (table.horizontalLines.count > 0) {
+        NSUInteger numRows = rowDisplays.count;
+        // Padding between hline and cell content (~2pt for 10pt font)
+        CGFloat hlinePadding = 0.2 * _styleFont.fontSize;
+        for (NSNumber* pos in table.horizontalLines) {
+            NSInteger r = [pos integerValue];
+            CGFloat y;
+            if (r < 0) {
+                // Line before first row: above the first row's ascent + padding
+                MTDisplay* firstRow = rowDisplays[0];
+                y = firstRow.position.y + firstRow.ascent + hlinePadding;
+            } else if (r >= (NSInteger)numRows - 1) {
+                // Line after last row: below the last row's descent + padding
+                MTDisplay* lastRow = rowDisplays[numRows - 1];
+                y = lastRow.position.y - lastRow.descent - hlinePadding;
+            } else {
+                // Line between row r and row r+1: midpoint of the gap
+                MTDisplay* rowAbove = rowDisplays[r];
+                MTDisplay* rowBelow = rowDisplays[r + 1];
+                CGFloat bottom = rowAbove.position.y - rowAbove.descent;
+                CGFloat top = rowBelow.position.y + rowBelow.ascent;
+                y = (bottom + top) / 2.0;
+            }
+            [horizontalLineYPositions addObject:@(y)];
+        }
+    }
+
+    // Compute horizontal line left/right bounds from vertical line positions
+    CGFloat lineLeft = 0;
+    CGFloat lineRight = 0;
+    if (verticalLineXPositions.count > 0) {
+        CGFloat minX = CGFLOAT_MAX;
+        CGFloat maxX = -CGFLOAT_MAX;
+        for (NSNumber* xPos in verticalLineXPositions) {
+            CGFloat x = [xPos doubleValue];
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+        }
+        lineLeft = minX;
+        lineRight = maxX;
+    } else {
+        // No vertical lines — span the full content width
+        CGFloat spacing = table.interColumnSpacing * _styleFont.mathTable.muUnit;
+        for (NSUInteger i = 0; i < numColumns; i++) {
+            lineRight += columnWidths[i];
+            if (i < numColumns - 1) {
+                lineRight += spacing;
+            }
+        }
+    }
+
+    MTTableDisplay* tableDisplay = [[MTTableDisplay alloc] initWithDisplays:rowDisplays verticalLines:verticalLineXPositions horizontalLines:horizontalLineYPositions range:table.indexRange];
     tableDisplay.position = _currentPosition;
+    tableDisplay.lineLeft = lineLeft;
+    tableDisplay.lineRight = lineRight;
     return tableDisplay;
 }
 

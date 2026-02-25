@@ -19,6 +19,7 @@ NSString *const MTParseError = @"ParseError";
 @property (nonatomic, readonly) NSString* envName;
 @property (nonatomic) BOOL ended;
 @property (nonatomic) NSInteger numRows;
+@property (nonatomic, nonnull, readonly) NSMutableArray<NSNumber*>* horizontalLines;
 
 @end
 
@@ -31,6 +32,7 @@ NSString *const MTParseError = @"ParseError";
         _envName = name;
         _numRows = 0;
         _ended = NO;
+        _horizontalLines = [NSMutableArray array];
     }
     return self;
 }
@@ -195,6 +197,13 @@ NSString *const MTParseError = @"ParseError";
                 return nil;
             }
             if ([self applyModifier:command atom:prevAtom]) {
+                continue;
+            }
+            if ([command isEqualToString:@"hline"]) {
+                if (_currentEnv) {
+                    [_currentEnv.horizontalLines addObject:@(_currentEnv.numRows - 1)];
+                }
+                // No atom added — just record the line position and continue
                 continue;
             }
             MTFontStyle fontStyle = [MTMathAtomFactory fontStyleWithName:command];
@@ -374,6 +383,71 @@ NSString *const MTParseError = @"ParseError";
             return;
         }
     }
+}
+
+/// Reads a length value like {2cm}, {1.5em}, {18mu} and returns the value in mu units.
+- (CGFloat) readLengthInMu
+{
+    if (![self expectCharacter:'{']) {
+        [self setError:MTParseErrorCharacterNotFound message:@"Missing { for length argument"];
+        return 0;
+    }
+    [self skipSpaces];
+
+    // Read the numeric part (including optional sign and decimal point)
+    NSMutableString* numStr = [NSMutableString string];
+    while ([self hasCharacters]) {
+        unichar ch = [self getNextCharacter];
+        if ((ch >= '0' && ch <= '9') || ch == '.' || ch == '-' || ch == '+') {
+            [numStr appendString:[NSString stringWithCharacters:&ch length:1]];
+        } else {
+            [self unlookCharacter];
+            break;
+        }
+    }
+
+    CGFloat value = [numStr doubleValue];
+
+    // Read the unit suffix
+    [self skipSpaces];
+    NSMutableString* unitStr = [NSMutableString string];
+    while ([self hasCharacters]) {
+        unichar ch = [self getNextCharacter];
+        if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')) {
+            [unitStr appendString:[NSString stringWithCharacters:&ch length:1]];
+        } else {
+            [self unlookCharacter];
+            break;
+        }
+    }
+
+    if (![self expectCharacter:'}']) {
+        [self setError:MTParseErrorCharacterNotFound message:@"Missing } for length argument"];
+        return 0;
+    }
+
+    // Convert to mu units
+    CGFloat muPerUnit = 1.0;
+    if ([unitStr isEqualToString:@"mu"]) {
+        muPerUnit = 1.0;
+    } else if ([unitStr isEqualToString:@"pt"]) {
+        muPerUnit = 1.8;
+    } else if ([unitStr isEqualToString:@"em"]) {
+        muPerUnit = 18.0;
+    } else if ([unitStr isEqualToString:@"ex"]) {
+        muPerUnit = 9.0;
+    } else if ([unitStr isEqualToString:@"cm"]) {
+        muPerUnit = 51.03;
+    } else if ([unitStr isEqualToString:@"mm"]) {
+        muPerUnit = 5.103;
+    } else if ([unitStr isEqualToString:@"in"]) {
+        muPerUnit = 129.6;
+    } else if ([unitStr isEqualToString:@"bp"]) {
+        muPerUnit = 1.8;
+    }
+    // If unit is empty or unrecognized, treat as mu
+
+    return value * muPerUnit;
 }
 
 #define MTAssertNotSpace(ch) NSAssert((ch) >= 0x21 && (ch) <= 0x7E, @"Expected non space character %c", (ch));
@@ -839,6 +913,10 @@ NSString *const MTParseError = @"ParseError";
             return nil;
         }
         return [MTMathAtomFactory operatorWithName:operatorName limits:limits];
+    } else if ([command isEqualToString:@"hspace"] || [command isEqualToString:@"kern"] || [command isEqualToString:@"mkern"] || [command isEqualToString:@"mspace"]) {
+        CGFloat muValue = [self readLengthInMu];
+        if (_error) return nil;
+        return [[MTMathSpace alloc] initWithSpace:muValue];
     } else if ([command isEqualToString:@"tag"]) {
         // Check for \tag* variant (star is not part of the command name)
         if ([self hasCharacters]) {
@@ -912,7 +990,7 @@ NSString *const MTParseError = @"ParseError";
         MTMathList* fracList = [MTMathList new];
         [fracList addAtom:frac];
         return fracList;
-    } else if ([command isEqualToString:@"\\"] || [command isEqualToString:@"cr"]) {
+    } else if ([command isEqualToString:@"\\"] || [command isEqualToString:@"cr"] || [command isEqualToString:@"newline"]) {
         if (_currentEnv) {
             // Stop the current list and increment the row count
             _currentEnv.numRows++;
@@ -1500,11 +1578,49 @@ NSString *const MTParseError = @"ParseError";
         [self setError:MTParseErrorMissingEnd message:@"Missing \\end"];
         return nil;
     }
+    // Strip trailing empty rows (e.g., from \\ \hline \end{array})
+    while (rows.count > 1) {
+        NSMutableArray<MTMathList*>* lastRow = rows.lastObject;
+        BOOL isEmpty = YES;
+        for (MTMathList* cell in lastRow) {
+            if (cell.atoms.count > 0) {
+                isEmpty = NO;
+                break;
+            }
+        }
+        if (isEmpty) {
+            [rows removeLastObject];
+        } else {
+            break;
+        }
+    }
     NSError* error;
+    NSArray<NSNumber*>* envHorizontalLines = [_currentEnv.horizontalLines copy];
     MTMathAtom* table = [MTMathAtomFactory tableWithEnvironment:_currentEnv.envName rows:rows error:&error];
     if (!table && !_error) {
         _error = error;
         return nil;
+    }
+    // Transfer horizontal line positions from the env to the table
+    if (envHorizontalLines.count > 0) {
+        // Find the MTMathTable — it may be wrapped in an MTInner for delimited environments
+        MTMathTable* mathTable = nil;
+        if ([table isKindOfClass:[MTMathTable class]]) {
+            mathTable = (MTMathTable*)table;
+        } else if ([table isKindOfClass:[MTInner class]]) {
+            MTInner* inner = (MTInner*)table;
+            for (MTMathAtom* atom in inner.innerList.atoms) {
+                if ([atom isKindOfClass:[MTMathTable class]]) {
+                    mathTable = (MTMathTable*)atom;
+                    break;
+                }
+            }
+        }
+        if (mathTable) {
+            for (NSNumber* row in envHorizontalLines) {
+                [mathTable addHorizontalLineAfterRow:row.integerValue];
+            }
+        }
     }
     // reinstate the old env.
     _currentEnv = oldEnv;

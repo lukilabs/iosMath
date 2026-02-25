@@ -561,6 +561,10 @@ typedef NS_ENUM(NSInteger, MTColumnAlignment) {
 /// numColumns = after last column) where a vertical line should be drawn.
 @property (nonatomic, nonnull, readonly) NSArray<NSNumber*>* verticalLines;
 
+/// Row indices after which horizontal lines should be drawn.
+/// A value of -1 means a line before the first row. A value of 0 means after row 0, etc.
+@property (nonatomic, nonnull, readonly) NSArray<NSNumber*>* horizontalLines;
+
 /// Set the value of a given cell. The table is automatically resized to contain this cell.
 - (void) setCell:(MTMathList*) list forRow:(NSInteger) row column:(NSInteger) column;
 
@@ -580,6 +584,9 @@ typedef NS_ENUM(NSInteger, MTColumnAlignment) {
 
 /// Add a vertical line at the given column position (0 = before first column).
 - (void) addVerticalLineAtColumn:(NSInteger) column;
+
+/// Add a horizontal line after the given row index (-1 = before first row).
+- (void) addHorizontalLineAfterRow:(NSInteger) row;
 
 @end
 

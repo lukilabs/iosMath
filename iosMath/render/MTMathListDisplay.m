@@ -1236,12 +1236,15 @@ static void drawHookEnd(CGContextRef context, CGPoint point, CGFloat radius, BOO
 
 @implementation MTTableDisplay
 
-- (instancetype)initWithDisplays:(NSArray<MTDisplay*>*)displays verticalLines:(NSArray<NSNumber*>*)verticalLineXPositions range:(NSRange)range
+- (instancetype)initWithDisplays:(NSArray<MTDisplay*>*)displays verticalLines:(NSArray<NSNumber*>*)verticalLineXPositions horizontalLines:(NSArray<NSNumber*>*)horizontalLineYPositions range:(NSRange)range
 {
     self = [super initWithDisplays:displays range:range];
     if (self) {
         _verticalLineXPositions = [verticalLineXPositions copy];
+        _horizontalLineYPositions = [horizontalLineYPositions copy];
         _lineThickness = 0.5;
+        _lineLeft = 0;
+        _lineRight = 0;
     }
     return self;
 }
@@ -1251,7 +1254,7 @@ static void drawHookEnd(CGContextRef context, CGPoint point, CGFloat radius, BOO
     // Draw all the row content first
     [super draw:context];
 
-    if (self.verticalLineXPositions.count == 0) {
+    if (self.verticalLineXPositions.count == 0 && self.horizontalLineYPositions.count == 0) {
         return;
     }
 
@@ -1265,14 +1268,35 @@ static void drawHookEnd(CGContextRef context, CGPoint point, CGFloat radius, BOO
         [[MTColor blackColor] setStroke];
     }
 
+    // Compute vertical line Y extent — if there are horizontal lines at the edges,
+    // extend vertical lines to meet them at the corners.
     CGFloat top = self.ascent;
     CGFloat bottom = -self.descent;
+    if (self.horizontalLineYPositions.count > 0) {
+        for (NSNumber* yPos in self.horizontalLineYPositions) {
+            CGFloat y = [yPos doubleValue];
+            if (y > top) top = y;
+            if (y < bottom) bottom = y;
+        }
+    }
 
     for (NSNumber* xPos in self.verticalLineXPositions) {
         CGFloat x = [xPos doubleValue];
         MTBezierPath* path = [MTBezierPath bezierPath];
         [path moveToPoint:CGPointMake(x, bottom)];
         [path addLineToPoint:CGPointMake(x, top)];
+        path.lineWidth = self.lineThickness;
+        [path stroke];
+    }
+
+    // Draw horizontal lines
+    CGFloat lineLeft = self.lineLeft;
+    CGFloat lineRight = self.lineRight > 0 ? self.lineRight : self.width;
+    for (NSNumber* yPos in self.horizontalLineYPositions) {
+        CGFloat y = [yPos doubleValue];
+        MTBezierPath* path = [MTBezierPath bezierPath];
+        [path moveToPoint:CGPointMake(lineLeft, y)];
+        [path addLineToPoint:CGPointMake(lineRight, y)];
         path.lineWidth = self.lineThickness;
         [path stroke];
     }

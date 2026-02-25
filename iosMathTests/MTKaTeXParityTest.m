@@ -1172,6 +1172,147 @@
 
 #pragma mark - Font size multiplier parsing
 
+#pragma mark - hline, substack, hspace, newline
+
+- (void)testHlineInArray
+{
+    // \begin{array}{cc} a & b \\ \hline c & d \end{array}
+    NSString *latex = @"\\begin{array}{cc} a & b \\\\ \\hline c & d \\end{array}";
+    MTMathList *list = [self parseNoError:latex];
+    XCTAssertTrue(list.atoms.count > 0, @"Expected atoms for hline array");
+    // The first atom should be a table
+    MTMathAtom *atom = list.atoms[0];
+    XCTAssertEqual(atom.type, kMTMathAtomTable, @"Expected table atom");
+    MTMathTable *table = (MTMathTable *)atom;
+    XCTAssertTrue(table.horizontalLines.count > 0, @"Expected horizontal lines");
+}
+
+- (void)testHlineBeforeFirstRow
+{
+    // \hline before any content: \begin{array}{c} \hline a \\ b \end{array}
+    NSString *latex = @"\\begin{array}{c} \\hline a \\\\ b \\end{array}";
+    MTMathList *list = [self parseNoError:latex];
+    XCTAssertTrue(list.atoms.count > 0);
+    MTMathAtom *atom = list.atoms[0];
+    XCTAssertEqual(atom.type, kMTMathAtomTable);
+    MTMathTable *table = (MTMathTable *)atom;
+    XCTAssertTrue(table.horizontalLines.count > 0, @"Expected horizontal line before first row");
+    // The line position should be -1 (before row 0)
+    XCTAssertEqual(table.horizontalLines[0].integerValue, -1, @"hline before first row should be -1");
+}
+
+- (void)testMultipleHlines
+{
+    // Multiple hlines: \begin{array}{c} \hline a \\ \hline b \\ \hline c \end{array}
+    NSString *latex = @"\\begin{array}{c} \\hline a \\\\ \\hline b \\\\ \\hline c \\end{array}";
+    MTMathList *list = [self parseNoError:latex];
+    MTMathTable *table = (MTMathTable *)list.atoms[0];
+    XCTAssertEqual(table.horizontalLines.count, 3, @"Expected 3 horizontal lines");
+}
+
+- (void)testSubstackParsing
+{
+    // \sum_{\substack{0<i<m \\ 0<j<n}} P(i,j)
+    NSString *latex = @"\\sum_{\\begin{substack} 0<i<m \\\\ 0<j<n \\end{substack}} P(i,j)";
+    [self assertParses:latex];
+}
+
+- (void)testSubstackEnvironment
+{
+    // Just the substack environment
+    NSString *latex = @"\\begin{substack} a \\\\ b \\\\ c \\end{substack}";
+    MTMathList *list = [self parseNoError:latex];
+    XCTAssertTrue(list.atoms.count > 0);
+    MTMathAtom *atom = list.atoms[0];
+    XCTAssertEqual(atom.type, kMTMathAtomTable, @"Expected table atom for substack");
+    MTMathTable *table = (MTMathTable *)atom;
+    XCTAssertEqual(table.numRows, 3, @"Expected 3 rows");
+    XCTAssertEqual(table.numColumns, 1, @"Expected 1 column");
+    // Verify script style is applied (first atom in each cell should be style)
+    MTMathList *firstCell = table.cells[0][0];
+    XCTAssertTrue(firstCell.atoms.count > 0);
+    XCTAssertEqual(firstCell.atoms[0].type, kMTMathAtomStyle, @"First atom should be style for substack");
+}
+
+- (void)testHspaceParsing
+{
+    // \hspace{1cm}
+    NSString *latex = @"a\\hspace{1cm}b";
+    MTMathList *list = [self parseNoError:latex];
+    XCTAssertTrue(list.atoms.count >= 3, @"Expected at least 3 atoms (a, space, b)");
+    // Find the space atom
+    BOOL foundSpace = NO;
+    for (MTMathAtom *atom in list.atoms) {
+        if (atom.type == kMTMathAtomSpace) {
+            MTMathSpace *space = (MTMathSpace *)atom;
+            XCTAssertEqualWithAccuracy(space.space, 51.03, 0.1, @"1cm should be ~51.03mu");
+            foundSpace = YES;
+            break;
+        }
+    }
+    XCTAssertTrue(foundSpace, @"Expected to find a space atom");
+}
+
+- (void)testHspaceUnits
+{
+    // Test various unit conversions
+    NSDictionary *cases = @{
+        @"18mu" : @18.0,
+        @"10pt" : @18.0,
+        @"1em" : @18.0,
+        @"2ex" : @18.0,
+        @"1in" : @129.6,
+        @"10mm" : @51.03,
+    };
+    for (NSString *unit in cases) {
+        NSString *latex = [NSString stringWithFormat:@"\\hspace{%@}", unit];
+        MTMathList *list = [self parseNoError:latex];
+        XCTAssertTrue(list.atoms.count >= 1, @"Expected atoms for \\hspace{%@}", unit);
+        MTMathAtom *atom = list.atoms[0];
+        XCTAssertEqual(atom.type, kMTMathAtomSpace, @"Expected space for \\hspace{%@}", unit);
+        MTMathSpace *space = (MTMathSpace *)atom;
+        CGFloat expected = [cases[unit] doubleValue];
+        XCTAssertEqualWithAccuracy(space.space, expected, 0.1,
+                                   @"Wrong mu value for \\hspace{%@}: got %f, expected %f", unit, space.space, expected);
+    }
+}
+
+- (void)testKernParsing
+{
+    NSString *latex = @"a\\kern{5pt}b";
+    MTMathList *list = [self parseNoError:latex];
+    BOOL foundSpace = NO;
+    for (MTMathAtom *atom in list.atoms) {
+        if (atom.type == kMTMathAtomSpace) {
+            MTMathSpace *space = (MTMathSpace *)atom;
+            XCTAssertEqualWithAccuracy(space.space, 9.0, 0.1, @"5pt should be 9mu");
+            foundSpace = YES;
+            break;
+        }
+    }
+    XCTAssertTrue(foundSpace, @"Expected to find a space atom from \\kern");
+}
+
+- (void)testNewlineParsing
+{
+    // newline at top level should create a table (same as double-backslash)
+    MTMathList *list = [self parseNoError:@"a \\newline b"];
+    XCTAssertTrue(list.atoms.count > 0);
+    XCTAssertTrue(list.atoms[0].type == kMTMathAtomTable, @"newline should create a table");
+    MTMathTable *table = (MTMathTable *)list.atoms[0];
+    XCTAssertTrue(table.numRows == 2, @"Expected 2 rows from newline");
+}
+
+- (void)testNewlineInEnvironment
+{
+    // newline inside an environment should work like double-backslash
+    MTMathList *list2 = [self parseNoError:@"\\begin{gathered} a \\newline b \\end{gathered}"];
+    XCTAssertTrue(list2.atoms.count > 0);
+    XCTAssertTrue(list2.atoms[0].type == kMTMathAtomTable, @"Expected table");
+    MTMathTable *table2 = (MTMathTable *)list2.atoms[0];
+    XCTAssertTrue(table2.numRows == 2, @"Expected 2 rows from newline in gathered");
+}
+
 - (void)testFontSizeMultipliers
 {
     NSDictionary *expected = @{

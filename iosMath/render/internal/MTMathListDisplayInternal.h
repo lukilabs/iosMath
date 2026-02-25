@@ -153,9 +153,15 @@
 
 @interface MTTableDisplay ()
 
-- (instancetype)initWithDisplays:(NSArray<MTDisplay*>*) displays verticalLines:(NSArray<NSNumber*>*) verticalLineXPositions range:(NSRange) range NS_DESIGNATED_INITIALIZER;
+- (instancetype)initWithDisplays:(NSArray<MTDisplay*>*) displays verticalLines:(NSArray<NSNumber*>*) verticalLineXPositions horizontalLines:(NSArray<NSNumber*>*) horizontalLineYPositions range:(NSRange) range NS_DESIGNATED_INITIALIZER;
 
-/// Thickness of the vertical separator lines
+/// Thickness of the separator lines
 @property (nonatomic) CGFloat lineThickness;
+
+/// Left X bound for horizontal lines (matches leftmost vertical line edge)
+@property (nonatomic) CGFloat lineLeft;
+
+/// Right X bound for horizontal lines (matches rightmost vertical line edge)
+@property (nonatomic) CGFloat lineRight;
 
 @end

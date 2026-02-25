@@ -470,6 +470,24 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
         table.interColumnSpacing = 0;
         [table setAlignment:kMTColumnAlignmentCenter forColumn:0];
         return table;
+    } else if ([env isEqualToString:@"substack"]) {
+        if (table.numColumns > 1) {
+            NSString* message = @"substack environment can only have 1 column";
+            if (error) *error = [NSError errorWithDomain:MTParseError code:MTParseErrorInvalidNumColumns userInfo:@{ NSLocalizedDescriptionKey : message }];
+            return nil;
+        }
+        table.interRowAdditionalSpacing = 0;
+        table.interColumnSpacing = 0;
+        [table setAlignment:kMTColumnAlignmentCenter forColumn:0];
+        // Apply script style to all cells for compact sizing
+        MTMathAtom* style = [[MTMathStyle alloc] initWithStyle:kMTLineStyleScript];
+        for (int i = 0; i < table.cells.count; i++) {
+            NSArray<MTMathList*>* row = table.cells[i];
+            for (int j = 0; j < row.count; j++) {
+                [row[j] insertAtom:style atIndex:0];
+            }
+        }
+        return table;
     }
     if (error) {
         NSString* message = [NSString stringWithFormat:@"Unknown environment: %@", env];

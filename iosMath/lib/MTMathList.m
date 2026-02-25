@@ -912,6 +912,7 @@ static NSString* typeToText(MTMathAtomType type) {
 @property (nonatomic, nonnull) NSMutableArray<NSNumber*>* alignments;
 @property (nonatomic, nonnull) NSMutableArray<NSMutableArray<MTMathList*>*>* cells;
 @property (nonatomic, nonnull) NSMutableArray<NSNumber*>* verticalLines;
+@property (nonatomic, nonnull) NSMutableArray<NSNumber*>* horizontalLines;
 
 @end
 
@@ -924,6 +925,7 @@ static NSString* typeToText(MTMathAtomType type) {
         self.alignments = [NSMutableArray array];
         self.cells = [NSMutableArray array];
         self.verticalLines = [NSMutableArray array];
+        self.horizontalLines = [NSMutableArray array];
         self.interRowAdditionalSpacing = 0;
         self.interColumnSpacing = 0;
         _environment = env;
@@ -954,6 +956,7 @@ static NSString* typeToText(MTMathAtomType type) {
     op->_environment = self.environment;
     op.alignments = [NSMutableArray arrayWithArray:self.alignments];
     op.verticalLines = [NSMutableArray arrayWithArray:self.verticalLines];
+    op.horizontalLines = [NSMutableArray arrayWithArray:self.horizontalLines];
     // Perform a deep copy of the cells.
     NSMutableArray* cellCopy = [NSMutableArray arrayWithCapacity:self.cells.count];
     for (NSMutableArray* row in self.cells) {
@@ -1031,6 +1034,11 @@ static NSString* typeToText(MTMathAtomType type) {
 - (void)addVerticalLineAtColumn:(NSInteger)column
 {
     [_verticalLines addObject:@(column)];
+}
+
+- (void)addHorizontalLineAfterRow:(NSInteger)row
+{
+    [_horizontalLines addObject:@(row)];
 }
 
 @end
