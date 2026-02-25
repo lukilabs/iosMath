@@ -1313,6 +1313,79 @@
     XCTAssertTrue(table2.numRows == 2, @"Expected 2 rows from newline in gathered");
 }
 
+- (void)testBackslashNewlineAsSpace
+{
+    // \ followed by newline should be treated as \ (forced space), not cause parse error
+    NSString *latex = @"a\\\nb";
+    MTMathList *list = [self parseNoError:latex];
+    XCTAssertTrue(list.atoms.count >= 2, @"Expected at least 2 atoms for backslash-newline");
+}
+
+- (void)testDoubleBackslashOptionalSpacing
+{
+    // \\[3pt] should parse without leaving [3pt] as visible content
+    NSString *latex = @"\\begin{aligned} x &= 1 \\\\[3pt] y &= 2 \\end{aligned}";
+    [self assertParses:latex];
+}
+
+- (void)testDoubleBackslashOptionalSpacingMultiple
+{
+    // Multiple \\[length] arguments in gathered (single-column)
+    NSString *latex = @"\\begin{gathered} a \\\\[4pt] b \\\\[2em] c \\end{gathered}";
+    MTMathList *list = [self parseNoError:latex];
+    MTMathTable *table = (MTMathTable *)list.atoms[0];
+    XCTAssertEqual(table.numRows, 3, @"Expected 3 rows");
+}
+
+- (void)testAttentionFormulaFullParse
+{
+    // The user's full attention formula should parse without errors
+    NSString *latex = @"\\begin{aligned}"
+        "\\text{Given}\\quad "
+        "Q &\\in \\mathbb{R}^{n\\times d_k},\\ "
+        "K \\in \\mathbb{R}^{m\\times d_k},\\ "
+        "V \\in \\mathbb{R}^{m\\times d_v},\\quad "
+        "Z = \\frac{QK^{\\top}}{\\sqrt{d_k}}\\\\[3pt]"
+        "A &= \\mathrm{softmax}(Z)\\ \\text{row wise},\\qquad "
+        "Y = A V,\\qquad "
+        "\\mathcal{L} = \\ell(Y)\\\\[4pt]"
+        "\\text{Forward pieces:}\\quad "
+        "Z_{ij} &= \\frac{1}{\\sqrt{d_k}}\\sum_{p=1}^{d_k} Q_{ip} K_{jp},\\qquad "
+        "A_{ij} = \\frac{e^{Z_{ij}}}{\\sum_{t=1}^{m} e^{Z_{it}}},\\qquad "
+        "Y_{ir} = \\sum_{j=1}^{m} A_{ij} V_{jr}\\\\[4pt]"
+        "\\text{Start with } G_Y &\\equiv \\frac{\\partial \\mathcal{L}}{\\partial Y} "
+        "\\in \\mathbb{R}^{n\\times d_v}\\\\[3pt]"
+        "\\text{Gradient to } V:\\quad "
+        "\\frac{\\partial \\mathcal{L}}{\\partial V} &= A^{\\top} G_Y\\\\[3pt]"
+        "\\text{Gradient to } A:\\quad "
+        "G_A &\\equiv \\frac{\\partial \\mathcal{L}}{\\partial A} = G_Y V^{\\top}\\\\[3pt]"
+        "\\text{Softmax Jacobian row i:}\\quad "
+        "\\frac{\\partial A_{ij}}{\\partial Z_{ik}} &= A_{ij}(\\delta_{jk} - A_{ik}) "
+        "\\Rightarrow "
+        "G_{Z,i\\cdot} = \\left(J_{\\mathrm{softmax}}^{(i)}\\right)^{\\top} G_{A,i\\cdot}\\\\[4pt]"
+        "\\text{Compactly:}\\quad "
+        "G_Z &= (G_A \\odot A) - A \\odot ((G_A \\mathbf{1}_m)\\mathbf{1}_m^{\\top})\\\\[4pt]"
+        "\\text{Back to } Q \\text{ and } K:\\quad "
+        "\\frac{\\partial \\mathcal{L}}{\\partial Q} &= \\frac{1}{\\sqrt{d_k}}\\, G_Z K,\\quad "
+        "\\frac{\\partial \\mathcal{L}}{\\partial K} = \\frac{1}{\\sqrt{d_k}}\\, G_Z^{\\top} Q\\\\[4pt]"
+        "\\text{Summary:}\\quad "
+        "\\boxed{"
+        "\\begin{aligned}"
+        "\\frac{\\partial \\mathcal{L}}{\\partial V} &= A^{\\top} G_Y\\\\"
+        "G_A &= G_Y V^{\\top}\\\\"
+        "G_Z &= (G_A \\odot A) - A \\odot ((G_A \\mathbf{1}_m)\\mathbf{1}_m^{\\top})\\\\"
+        "\\frac{\\partial \\mathcal{L}}{\\partial Q} &= \\frac{1}{\\sqrt{d_k}}\\, G_Z K\\\\"
+        "\\frac{\\partial \\mathcal{L}}{\\partial K} &= \\frac{1}{\\sqrt{d_k}}\\, G_Z^{\\top} Q"
+        "\\end{aligned}"
+        "}\\\\[3pt]"
+        "\\text{If multi head:}\\quad "
+        "\\mathcal{L} = \\ell(\\mathrm{Concat}(Y^{(1)},\\ldots,Y^{(H)})W^O) "
+        "\\Rightarrow "
+        "\\text{apply per head } h \\text{ and chain through } W^O"
+        "\\end{aligned}";
+    [self assertParses:latex];
+}
+
 - (void)testFontSizeMultipliers
 {
     NSDictionary *expected = @{

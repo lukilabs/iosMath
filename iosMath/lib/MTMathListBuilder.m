@@ -480,6 +480,8 @@ NSString *const MTParseError = @"ParseError";
     if ([self hasCharacters]) {
         // Check if we have a single character command.
         unichar ch = [self getNextCharacter];
+        // Treat newline/carriage-return as space (e.g., "\ " split across lines)
+        if (ch == '\n' || ch == '\r') ch = ' ';
         // Single char commands
         if ([singleCharCommands containsObject:@(ch)]) {
             return [NSString stringWithCharacters:&ch length:1];
@@ -1010,6 +1012,18 @@ NSString *const MTParseError = @"ParseError";
         [fracList addAtom:frac];
         return fracList;
     } else if ([command isEqualToString:@"\\"] || [command isEqualToString:@"cr"] || [command isEqualToString:@"newline"]) {
+        // Skip optional [length] spacing argument (e.g., \\[3pt])
+        if ([self hasCharacters]) {
+            unichar next = [self getNextCharacter];
+            if (next == '[') {
+                // Consume everything until closing ]
+                while ([self hasCharacters]) {
+                    if ([self getNextCharacter] == ']') break;
+                }
+            } else {
+                [self unlookCharacter];
+            }
+        }
         if (_currentEnv) {
             // Stop the current list and increment the row count
             _currentEnv.numRows++;
