@@ -494,6 +494,20 @@ NSString *const MTParseError = @"ParseError";
     return [self readString];
 }
 
+- (CGFloat) delimiterHeightMultiplierForCommand:(NSString*) command
+{
+    // Strip l/r/m suffix to get the base size command
+    NSString* base = command;
+    if ([base hasSuffix:@"l"] || [base hasSuffix:@"r"] || [base hasSuffix:@"m"]) {
+        base = [base substringToIndex:base.length - 1];
+    }
+    if ([base isEqualToString:@"big"]) return 1.2;
+    if ([base isEqualToString:@"Big"]) return 1.8;
+    if ([base isEqualToString:@"bigg"]) return 2.4;
+    if ([base isEqualToString:@"Bigg"]) return 3.0;
+    return 0;
+}
+
 - (NSString*) readDelimiter
 {
     // Ignore spaces and nonascii.
@@ -773,6 +787,7 @@ NSString *const MTParseError = @"ParseError";
         return inner;
     } else if ([command isEqualToString:@"dfrac"]) {
         MTFraction* frac = [MTFraction new];
+        frac.forcedStyle = kMTLineStyleDisplay;
         MTMathList* num = [self buildInternal:true];
         [num insertAtom:[[MTMathStyle alloc] initWithStyle:kMTLineStyleDisplay] atIndex:0];
         frac.numerator = num;
@@ -782,6 +797,7 @@ NSString *const MTParseError = @"ParseError";
         return frac;
     } else if ([command isEqualToString:@"tfrac"]) {
         MTFraction* frac = [MTFraction new];
+        frac.forcedStyle = kMTLineStyleText;
         MTMathList* num = [self buildInternal:true];
         [num insertAtom:[[MTMathStyle alloc] initWithStyle:kMTLineStyleText] atIndex:0];
         frac.numerator = num;
@@ -801,6 +817,7 @@ NSString *const MTParseError = @"ParseError";
         return frac;
     } else if ([command isEqualToString:@"dbinom"]) {
         MTFraction* frac = [[MTFraction alloc] initWithRule:NO];
+        frac.forcedStyle = kMTLineStyleDisplay;
         MTMathList* num = [self buildInternal:true];
         [num insertAtom:[[MTMathStyle alloc] initWithStyle:kMTLineStyleDisplay] atIndex:0];
         frac.numerator = num;
@@ -812,6 +829,7 @@ NSString *const MTParseError = @"ParseError";
         return frac;
     } else if ([command isEqualToString:@"tbinom"]) {
         MTFraction* frac = [[MTFraction alloc] initWithRule:NO];
+        frac.forcedStyle = kMTLineStyleText;
         MTMathList* num = [self buildInternal:true];
         [num insertAtom:[[MTMathStyle alloc] initWithStyle:kMTLineStyleText] atIndex:0];
         frac.numerator = num;
@@ -861,6 +879,7 @@ NSString *const MTParseError = @"ParseError";
         if (!atom) {
             atom = [MTMathAtom atomWithType:kMTMathAtomOrdinary value:delim];
         }
+        atom.delimiterHeight = [self delimiterHeightMultiplierForCommand:command];
         return atom;
     } else if ([command isEqualToString:@"bigl"] || [command isEqualToString:@"Bigl"]
                || [command isEqualToString:@"biggl"] || [command isEqualToString:@"Biggl"]) {
@@ -872,7 +891,9 @@ NSString *const MTParseError = @"ParseError";
         }
         MTMathAtom* boundary = [MTMathAtomFactory boundaryAtomForDelimiterName:delim];
         NSString* nucleus = boundary ? boundary.nucleus : delim;
-        return [MTMathAtom atomWithType:kMTMathAtomOpen value:nucleus];
+        MTMathAtom* atom = [MTMathAtom atomWithType:kMTMathAtomOpen value:nucleus];
+        atom.delimiterHeight = [self delimiterHeightMultiplierForCommand:command];
+        return atom;
     } else if ([command isEqualToString:@"bigr"] || [command isEqualToString:@"Bigr"]
                || [command isEqualToString:@"biggr"] || [command isEqualToString:@"Biggr"]) {
         NSString* delim = [self readDelimiter];
@@ -883,7 +904,9 @@ NSString *const MTParseError = @"ParseError";
         }
         MTMathAtom* boundary = [MTMathAtomFactory boundaryAtomForDelimiterName:delim];
         NSString* nucleus = boundary ? boundary.nucleus : delim;
-        return [MTMathAtom atomWithType:kMTMathAtomClose value:nucleus];
+        MTMathAtom* atom = [MTMathAtom atomWithType:kMTMathAtomClose value:nucleus];
+        atom.delimiterHeight = [self delimiterHeightMultiplierForCommand:command];
+        return atom;
     } else if ([command isEqualToString:@"bigm"] || [command isEqualToString:@"Bigm"]
                || [command isEqualToString:@"biggm"] || [command isEqualToString:@"Biggm"]) {
         NSString* delim = [self readDelimiter];
@@ -894,7 +917,9 @@ NSString *const MTParseError = @"ParseError";
         }
         MTMathAtom* boundary = [MTMathAtomFactory boundaryAtomForDelimiterName:delim];
         NSString* nucleus = boundary ? boundary.nucleus : delim;
-        return [MTMathAtom atomWithType:kMTMathAtomRelation value:nucleus];
+        MTMathAtom* atom = [MTMathAtom atomWithType:kMTMathAtomRelation value:nucleus];
+        atom.delimiterHeight = [self delimiterHeightMultiplierForCommand:command];
+        return atom;
     } else if ([command hasPrefix:@"x"] && [self isExtensibleArrowCommand:command]) {
         return [self buildExtensibleArrow:command];
     } else if ([command isEqualToString:@"operatorname"] || [command isEqualToString:@"operatorname*"]) {
@@ -1147,11 +1172,12 @@ NSString *const MTParseError = @"ParseError";
     [self defineMacro:@"vu" params:1 expansion:@"\\hat{\\mathbf{#1}}"];
 
     // mathtools symbols (composite approximations)
-    [self defineMacro:@"coloneqq" params:0 expansion:@":\\!\\!="];
-    [self defineMacro:@"Coloneqq" params:0 expansion:@"::\\!\\!="];
-    [self defineMacro:@"eqqcolon" params:0 expansion:@"=\\!\\!:"];
-    [self defineMacro:@"colonapprox" params:0 expansion:@":\\!\\!\\approx"];
-    [self defineMacro:@"dblcolon" params:0 expansion:@":\\!\\!:"];
+    // No negative spacing — iosMath's \! (-3mu) is too aggressive; LaTeX uses only -1.2mu.
+    [self defineMacro:@"coloneqq" params:0 expansion:@":="];
+    [self defineMacro:@"Coloneqq" params:0 expansion:@"::="];
+    [self defineMacro:@"eqqcolon" params:0 expansion:@"=:"];
+    [self defineMacro:@"colonapprox" params:0 expansion:@":\\approx"];
+    [self defineMacro:@"dblcolon" params:0 expansion:@"::"];
 
     // Common blackboard bold shorthands
     [self defineMacro:@"R" params:0 expansion:@"\\mathbb{R}"];

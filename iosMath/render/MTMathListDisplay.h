@@ -148,6 +148,10 @@ typedef NS_ENUM(unsigned int, MTLinePosition)  {
 
 - (instancetype)init NS_UNAVAILABLE;
 
+/// Horizontal scale factor for the glyph. Default is 1.0 (no scaling).
+/// Used to stretch overbrace/underbrace glyphs to match content width.
+@property (nonatomic) CGFloat horizontalScale;
+
 @end
 
 /// Rendering a large operator with limits as an MTDisplay

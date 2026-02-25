@@ -18,7 +18,7 @@ static BOOL isNotBinaryOperator(MTMathAtom* prevNode)
         return true;
     }
     
-    if (prevNode.type == kMTMathAtomBinaryOperator || prevNode.type == kMTMathAtomRelation || prevNode.type == kMTMathAtomOpen || prevNode.type == kMTMathAtomPunctuation || prevNode.type == kMTMathAtomLargeOperator) {
+    if (prevNode.type == kMTMathAtomBinaryOperator || prevNode.type == kMTMathAtomRelation || prevNode.type == kMTMathAtomOpen || prevNode.type == kMTMathAtomPunctuation || prevNode.type == kMTMathAtomLargeOperator || prevNode.type == kMTMathAtomExtensibleArrow) {
         return true;
     }
     return false;
@@ -186,6 +186,7 @@ static NSString* typeToText(MTMathAtomType type) {
     atom.superScript = [self.superScript copyWithZone:zone];
     atom.indexRange = self.indexRange;
     atom.fontStyle = self.fontStyle;
+    atom.delimiterHeight = self.delimiterHeight;
     return atom;
 }
 
@@ -291,6 +292,7 @@ static NSString* typeToText(MTMathAtomType type) {
     self = [super initWithType:kMTMathAtomFraction value:@""];
     if (self) {
         _hasRule = hasRule;
+        _forcedStyle = (MTLineStyle)-1;
     }
     return self;
 }
@@ -325,6 +327,7 @@ static NSString* typeToText(MTMathAtomType type) {
     frac->_hasRule = self.hasRule;
     frac.leftDelimiter = [self.leftDelimiter copyWithZone:zone];
     frac.rightDelimiter = [self.rightDelimiter copyWithZone:zone];
+    frac.forcedStyle = self.forcedStyle;
     return frac;
 }
 

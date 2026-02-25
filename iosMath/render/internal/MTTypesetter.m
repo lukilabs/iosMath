@@ -528,7 +528,9 @@ static void getBboxDetails(CGRect bbox, CGFloat* ascent, CGFloat* descent)
         if (atom.type == kMTMathAtomOrdinary) {
             // This is Rule 14 to merge ordinary characters.
             // combine ordinary atoms together
-            if (prevNode && prevNode.type == kMTMathAtomOrdinary && !prevNode.subScript && !prevNode.superScript) {
+            // Don't fuse atoms with explicit delimiter heights — they need individual glyph sizing.
+            if (prevNode && prevNode.type == kMTMathAtomOrdinary && !prevNode.subScript && !prevNode.superScript
+                && prevNode.delimiterHeight == 0 && atom.delimiterHeight == 0) {
                 [prevNode fuse:atom];
                 // skip the current node, we are done here.
                 continue;
@@ -926,6 +928,22 @@ static void getBboxDetails(CGRect bbox, CGFloat* ascent, CGFloat* descent)
             case kMTMathAtomClose:
             case kMTMathAtomPlaceholder:
             case kMTMathAtomPunctuation: {
+                if (atom.delimiterHeight > 0) {
+                    // Sized delimiter (\big, \Big, \bigg, \Bigg)
+                    if (_currentLine.length > 0) {
+                        [self addDisplayLine];
+                    }
+                    [self addInterElementSpace:prevNode currentType:atom.type];
+                    CGFloat glyphHeight = atom.delimiterHeight * _styleFont.fontSize;
+                    MTDisplay* display = [self findGlyphForBoundary:atom.nucleus withHeight:glyphHeight];
+                    display.position = _currentPosition;
+                    [_displayAtoms addObject:display];
+                    _currentPosition.x += display.width;
+                    if (atom.subScript || atom.superScript) {
+                        [self makeScripts:atom display:display index:atom.indexRange.location delta:0];
+                    }
+                    break;
+                }
                 // the rendering for all the rest is pretty similar
                 // All we need is render the character and set the interelement space.
                 if (prevNode) {
@@ -963,7 +981,7 @@ static void getBboxDetails(CGRect bbox, CGFloat* ascent, CGFloat* descent)
                 } else {
                     [_currentAtoms addObject:atom];
                 }
-                
+
                 // add super scripts || subscripts
                 if (atom.subScript || atom.superScript) {
                     // stash the existing line
@@ -1249,11 +1267,19 @@ static void getBboxDetails(CGRect bbox, CGFloat* ascent, CGFloat* descent)
 
 - (MTDisplay*) makeFraction:(MTFraction*) frac
 {
+    // If a forced style is set (e.g. \dbinom, \tbinom), temporarily override
+    // the typesetter's style so fraction layout metrics use the correct values.
+    MTLineStyle savedStyle = _style;
+    MTFont* savedFont = _styleFont;
+    if ((int)frac.forcedStyle >= 0) {
+        self.style = frac.forcedStyle;
+    }
+
     // lay out the parts of the fraction
     MTLineStyle fractionStyle = self.fractionStyle;
     MTMathListDisplay* numeratorDisplay = [MTTypesetter createLineForMathList:frac.numerator font:_font style:fractionStyle cramped:false];
     MTMathListDisplay* denominatorDisplay = [MTTypesetter createLineForMathList:frac.denominator font:_font style:fractionStyle cramped:true];
-    
+
     // determine the location of the numerator
     CGFloat numeratorShiftUp = [self numeratorShiftUp:frac.hasRule];
     CGFloat denominatorShiftDown = [self denominatorShiftDown:frac.hasRule];
@@ -1299,11 +1325,20 @@ static void getBboxDetails(CGRect bbox, CGFloat* ascent, CGFloat* descent)
     display.denominatorDown = denominatorShiftDown;
     display.lineThickness = barThickness;
     display.linePosition = barLocation;
+
+    MTDisplay* result;
     if (!frac.leftDelimiter && !frac.rightDelimiter) {
-        return display;
+        result = display;
     } else {
-        return [self addDelimitersToFractionDisplay:display forFraction:frac];
+        result = [self addDelimitersToFractionDisplay:display forFraction:frac];
     }
+
+    // Restore the typesetter's style if we overrode it
+    if ((int)frac.forcedStyle >= 0) {
+        _style = savedStyle;
+        _styleFont = savedFont;
+    }
+    return result;
 }
 
 - (MTDisplay*) addDelimitersToFractionDisplay:(MTFractionDisplay*)display forFraction:(MTFraction*) frac
@@ -1931,9 +1966,9 @@ static const NSInteger kDelimiterShortfallPoints = 5;
     for (int i = 0; i < numVariants; i++) {
         CGRect bounds = bboxes[i];
         CGFloat ascent, descent;
-        CGFloat width = CGRectGetMaxX(bounds);
+        CGFloat width = advances[i].width;
         getBboxDetails(bounds, &ascent, &descent);
-        
+
         if (width > maxWidth) {
             if (i == 0) {
                 // glyph dimensions are not yet set
@@ -1960,6 +1995,59 @@ static const NSInteger kDelimiterShortfallPoints = 5;
         // no accent!
         return accentee;
     }
+
+    // Check for arrow accents that need extensible rendering
+    BOOL isArrowAccent = NO;
+    MTExtensibleArrowType arrowAccentType = kMTExtensibleArrowRight;
+    unichar accentChar = [accent.nucleus characterAtIndex:0];
+    if (accentChar == 0x20D7) {         // \overrightarrow / \vec
+        isArrowAccent = YES;
+        arrowAccentType = kMTExtensibleArrowRight;
+    } else if (accentChar == 0x20D6) {  // \overleftarrow
+        isArrowAccent = YES;
+        arrowAccentType = kMTExtensibleArrowLeft;
+    } else if (accentChar == 0x20E1) {  // \overleftrightarrow
+        isArrowAccent = YES;
+        arrowAccentType = kMTExtensibleArrowLeftRight;
+    }
+
+    if (isArrowAccent) {
+        // Render the arrow at the accentee's width using MTExtensibleArrowDisplay
+        CGFloat accenteeWidth = accentee.width;
+        CGFloat arrowLength = MAX(accenteeWidth, 10.0);
+
+        // Handle sub/superscripts on single char accentees
+        if ([self isSingleCharAccentee:accent] && (accent.subScript || accent.superScript)) {
+            MTMathAtom* innerAtom = accent.innerList.atoms[0];
+            innerAtom.superScript = accent.superScript;
+            innerAtom.subScript = accent.subScript;
+            accent.superScript = nil;
+            accent.subScript = nil;
+            accentee = [MTTypesetter createLineForMathList:accent.innerList font:_font style:_style cramped:_cramped];
+            arrowLength = MAX(accentee.width, 10.0);
+        }
+
+        MTExtensibleArrowDisplay* arrowDisplay = [[MTExtensibleArrowDisplay alloc] initWithAbove:nil below:nil arrowType:arrowAccentType arrowLength:arrowLength position:CGPointZero range:accent.indexRange];
+        arrowDisplay.lineThickness = _styleFont.mathTable.fractionRuleThickness;
+        arrowDisplay.labelGap = 0;
+        arrowDisplay.axisOffset = 0;
+        arrowDisplay.ascent = arrowDisplay.lineThickness * 2;
+        arrowDisplay.descent = 0;
+        arrowDisplay.width = arrowLength;
+
+        // Position the arrow above the accentee with a small gap
+        CGFloat gap = _styleFont.fontSize * 0.1;
+        CGFloat arrowY = accentee.ascent + gap;
+        arrowDisplay.position = CGPointMake(0, arrowY);
+
+        // Build a composite display containing accentee + arrow
+        accentee.position = CGPointZero;
+        NSArray* elements = @[accentee, arrowDisplay];
+        MTMathListDisplay* composite = [[MTMathListDisplay alloc] initWithDisplays:elements range:accent.indexRange];
+        composite.position = _currentPosition;
+        return composite;
+    }
+
     CGGlyph accentGlyph = [self findGlyphForCharacterAtIndex:accent.nucleus.length - 1 inString:accent.nucleus];
     CGFloat accenteeWidth = accentee.width;
     CGFloat glyphAscent, glyphDescent, glyphWidth;
@@ -1983,6 +2071,15 @@ static const NSInteger kDelimiterShortfallPoints = 5;
     accentGlyphDisplay.ascent = glyphAscent;
     accentGlyphDisplay.descent = glyphDescent;
     accentGlyphDisplay.width = glyphWidth;
+
+    // Scale overbrace/underbrace horizontally if the largest variant is still narrower than the content
+    if ((isOverbrace || isUnderbrace) && glyphWidth > 0 && glyphWidth < accenteeWidth) {
+        accentGlyphDisplay.horizontalScale = accenteeWidth / glyphWidth;
+        accentGlyphDisplay.width = accenteeWidth;
+        // Reset skew — the scaled glyph already spans the full content width
+        accentPosition.x = 0;
+    }
+
     accentGlyphDisplay.position = accentPosition;
     
     if ([self isSingleCharAccentee:accent] && (accent.subScript || accent.superScript)) {
@@ -2105,27 +2202,14 @@ static const CGFloat kJotMultiplier = 0.3; // A jot is 3pt for a 10pt font.
         }
     }
 
-    // Compute horizontal line left/right bounds from vertical line positions
+    // Compute horizontal line left/right bounds from the full table width
+    CGFloat spacing2 = table.interColumnSpacing * _styleFont.mathTable.muUnit;
     CGFloat lineLeft = 0;
     CGFloat lineRight = 0;
-    if (verticalLineXPositions.count > 0) {
-        CGFloat minX = CGFLOAT_MAX;
-        CGFloat maxX = -CGFLOAT_MAX;
-        for (NSNumber* xPos in verticalLineXPositions) {
-            CGFloat x = [xPos doubleValue];
-            if (x < minX) minX = x;
-            if (x > maxX) maxX = x;
-        }
-        lineLeft = minX;
-        lineRight = maxX;
-    } else {
-        // No vertical lines — span the full content width
-        CGFloat spacing = table.interColumnSpacing * _styleFont.mathTable.muUnit;
-        for (NSUInteger i = 0; i < numColumns; i++) {
-            lineRight += columnWidths[i];
-            if (i < numColumns - 1) {
-                lineRight += spacing;
-            }
+    for (NSUInteger i = 0; i < numColumns; i++) {
+        lineRight += columnWidths[i];
+        if (i < numColumns - 1) {
+            lineRight += spacing2;
         }
     }
 

@@ -155,6 +155,11 @@ typedef NS_ENUM(NSUInteger, MTFontStyle)
 /** The font style to be used for the atom. */
 @property (nonatomic) MTFontStyle fontStyle;
 
+/// Target delimiter height multiplier for \big/\Big/\bigg/\Bigg.
+/// 0 means no explicit sizing (default). The actual height in points
+/// is computed as delimiterHeight * fontSize in the typesetter.
+@property (nonatomic) CGFloat delimiterHeight;
+
 /** Returns true if this atom allows scripts (sub or super). */
 - (bool) scriptsAllowed;
 
@@ -199,6 +204,11 @@ typedef NS_ENUM(NSUInteger, MTFontStyle)
 @property (nonatomic, nullable) NSString* leftDelimiter;
 /** An optional delimiter for a fraction on the right. */
 @property (nonatomic, nullable) NSString* rightDelimiter;
+
+/// If >= 0, forces the fraction layout to use this style (as MTLineStyle)
+/// instead of the typesetter's current style. Default is -1 (no override).
+/// Used by \dbinom/\tbinom/\dfrac/\tfrac to control layout sizing.
+@property (nonatomic) NSInteger forcedStyle;
 
 @end
 

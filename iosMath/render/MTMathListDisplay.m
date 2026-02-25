@@ -494,7 +494,8 @@ static BOOL isIos6Supported() {
     if (self) {
         _font = font;
         _glyph = glyph;
-        
+        _horizontalScale = 1.0;
+
         self.position = CGPointZero;
         self.range = range;
     }
@@ -504,15 +505,18 @@ static BOOL isIos6Supported() {
 - (void)draw:(CGContextRef)context
 {
     CGContextSaveGState(context);
-    
+
     [self.textColor setFill];
-    
+
     // Make the current position the origin as all the positions of the sub atoms are relative to the origin.
     CGContextTranslateCTM(context, self.position.x, self.position.y - self.shiftDown);
+    if (_horizontalScale != 1.0) {
+        CGContextScaleCTM(context, _horizontalScale, 1.0);
+    }
     CGContextSetTextPosition(context, 0, 0);
-    
+
     CTFontDrawGlyphs(_font.ctFont, &_glyph, &CGPointZero, 1, context);
-    
+
     CGContextRestoreGState(context);
 }
 
