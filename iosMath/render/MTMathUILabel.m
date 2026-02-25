@@ -41,6 +41,7 @@
 - (void) initCommon
 {
     self.layer.geometryFlipped = YES;  // For ease of interaction with the CoreText coordinate system.
+    _needsTypesetting = YES;
     // default font size
     _fontSize = 20;
     _contentInsets = MTEdgeInsetsZero;
