@@ -27,7 +27,8 @@ typedef NS_ENUM(int, MTInterElementSpaceType) {
 
 NSArray* getInterElementSpaces() {
     static NSArray* interElementSpaceArray = nil;
-    if (!interElementSpaceArray) {
+    static dispatch_once_t interElementSpaceArrayToken;
+    dispatch_once(&interElementSpaceArrayToken, ^{
         interElementSpaceArray =
         //   ordinary             operator             binary               relation            open                 close               punct               // fraction
         @[ @[@(kMTSpaceNone),     @(kMTSpaceThin),     @(kMTSpaceNSMedium), @(kMTSpaceNSThick), @(kMTSpaceNone),     @(kMTSpaceNone),    @(kMTSpaceNone),    @(kMTSpaceNSThin)],    // ordinary
@@ -39,7 +40,7 @@ NSArray* getInterElementSpaces() {
            @[@(kMTSpaceNSThin),   @(kMTSpaceNSThin),   @(kMTSpaceInvalid),  @(kMTSpaceNSThin),  @(kMTSpaceNSThin),   @(kMTSpaceNSThin),  @(kMTSpaceNSThin),  @(kMTSpaceNSThin)],    // punct
            @[@(kMTSpaceNSThin),   @(kMTSpaceThin),     @(kMTSpaceNSMedium), @(kMTSpaceNSThick), @(kMTSpaceNSThin),   @(kMTSpaceNone),    @(kMTSpaceNSThin),  @(kMTSpaceNSThin)],    // fraction
            @[@(kMTSpaceNSMedium), @(kMTSpaceNSThin),   @(kMTSpaceNSMedium), @(kMTSpaceNSThick), @(kMTSpaceNone),     @(kMTSpaceNone),    @(kMTSpaceNone),    @(kMTSpaceNSThin)]];   // radical
-    }
+    });
     return interElementSpaceArray;
 }
 
@@ -106,9 +107,10 @@ NSUInteger greekSymbolOrder(unichar ch) {
     // These greek symbols that always appear in unicode in this particular order after the alphabet
     // The symbols are epsilon, vartheta, varkappa, phi, varrho, varpi.
     static NSArray* greekSymbols;
-    if (!greekSymbols) {
+    static dispatch_once_t greekSymbolsToken;
+    dispatch_once(&greekSymbolsToken, ^{
         greekSymbols = @[@0x03F5, @0x03D1, @0x03F0, @0x03D5, @0x03F1, @0x03D6];
-    }
+    });
     return [greekSymbols indexOfObject:@(ch)];
 }
 
