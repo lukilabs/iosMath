@@ -473,11 +473,10 @@ NSString *const MTParseError = @"ParseError";
 - (NSString*) readCommand
 {
     static NSSet<NSNumber*>* singleCharCommands = nil;
-    static dispatch_once_t singleCharCommandsToken;
-    dispatch_once(&singleCharCommandsToken, ^{
+    if (!singleCharCommands) {
         NSArray* singleChars = @[ @'{', @'}', @'$', @'#', @'%', @'_', @'|', @' ', @',', @'>', @';', @'!', @'\\' ];
         singleCharCommands = [[NSSet alloc] initWithArray:singleChars];
-    });
+    }
     if ([self hasCharacters]) {
         // Check if we have a single character command.
         unichar ch = [self getNextCharacter];
@@ -998,14 +997,13 @@ NSString *const MTParseError = @"ParseError";
 - (MTMathList*) stopCommand:(NSString*) command list:(MTMathList*) list stopChar:(unichar) stopChar
 {
     static NSDictionary<NSString*, NSArray*>* fractionCommands = nil;
-    static dispatch_once_t fractionCommandsToken;
-    dispatch_once(&fractionCommandsToken, ^{
+    if (!fractionCommands) {
         fractionCommands = @{ @"over" : @[],
                               @"atop" : @[],
                               @"choose" : @[ @"(", @")"],
                               @"brack" : @[ @"[", @"]"],
                               @"brace" : @[ @"{", @"}"]};
-    });
+    }
     if ([command isEqualToString:@"right"]) {
         if (!_currentInnerAtom) {
             NSString* errorMessage = @"Missing \\left";
@@ -1530,8 +1528,7 @@ NSString *const MTParseError = @"ParseError";
 - (BOOL) isExtensibleArrowCommand:(NSString*) command
 {
     static NSSet* arrowCommands = nil;
-    static dispatch_once_t arrowCommandsToken;
-    dispatch_once(&arrowCommandsToken, ^{
+    if (!arrowCommands) {
         arrowCommands = [NSSet setWithArray:@[
             @"xrightarrow", @"xleftarrow", @"xleftrightarrow",
             @"xRightarrow", @"xLeftarrow", @"xLeftrightarrow",
@@ -1540,15 +1537,14 @@ NSString *const MTParseError = @"ParseError";
             @"xrightharpoonup", @"xrightharpoondown",
             @"xleftharpoonup", @"xleftharpoondown",
         ]];
-    });
+    }
     return [arrowCommands containsObject:command];
 }
 
 - (MTMathAtom*) buildExtensibleArrow:(NSString*) command
 {
     static NSDictionary<NSString*, NSNumber*>* arrowTypes = nil;
-    static dispatch_once_t arrowTypesToken;
-    dispatch_once(&arrowTypesToken, ^{
+    if (!arrowTypes) {
         arrowTypes = @{
             @"xrightarrow" : @(kMTExtensibleArrowRight),
             @"xleftarrow" : @(kMTExtensibleArrowLeft),
@@ -1567,7 +1563,7 @@ NSString *const MTParseError = @"ParseError";
             @"xleftharpoonup" : @(kMTExtensibleArrowLeftHarpoonUp),
             @"xleftharpoondown" : @(kMTExtensibleArrowLeftHarpoonDown),
         };
-    });
+    }
     MTExtensibleArrowType arrowType = (MTExtensibleArrowType)[arrowTypes[command] unsignedIntegerValue];
     MTExtensibleArrow* arrow = [[MTExtensibleArrow alloc] initWithArrowType:arrowType];
 
@@ -1700,8 +1696,7 @@ NSString *const MTParseError = @"ParseError";
 + (NSDictionary*) spaceToCommands
 {
     static NSDictionary* spaceToCommands = nil;
-    static dispatch_once_t spaceToCommandsToken;
-    dispatch_once(&spaceToCommandsToken, ^{
+    if (!spaceToCommands) {
         spaceToCommands = @{
                             @3 : @",",
                             @4 : @">",
@@ -1710,22 +1705,21 @@ NSString *const MTParseError = @"ParseError";
                             @18 : @"quad",
                             @36 : @"qquad",
                     };
-    });
+    }
     return spaceToCommands;
 }
 
 + (NSDictionary*) styleToCommands
 {
     static NSDictionary* styleToCommands = nil;
-    static dispatch_once_t styleToCommandsToken;
-    dispatch_once(&styleToCommandsToken, ^{
+    if (!styleToCommands) {
         styleToCommands = @{
                             @(kMTLineStyleDisplay) : @"displaystyle",
                             @(kMTLineStyleText) : @"textstyle",
                             @(kMTLineStyleScript) : @"scriptstyle",
                             @(kMTLineStyleScriptScript) : @"scriptscriptstyle",
                             };
-    });
+    }
     return styleToCommands;
 }
 

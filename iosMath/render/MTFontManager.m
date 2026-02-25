@@ -25,10 +25,9 @@ const int kDefaultFontSize = 20;
 + (instancetype) fontManager
 {
     static MTFontManager* manager = nil;
-    static dispatch_once_t managerToken;
-    dispatch_once(&managerToken, ^{
+    if (manager == nil) {
         manager = [MTFontManager new];
-    });
+    }
     return manager;
 }
 

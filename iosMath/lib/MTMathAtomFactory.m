@@ -286,15 +286,14 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
         }
     }
     static NSDictionary<NSString*, NSArray*>* matrixEnvs = nil;
-    static dispatch_once_t matrixEnvsToken;
-    dispatch_once(&matrixEnvsToken, ^{
+    if (!matrixEnvs) {
         matrixEnvs = @{ @"matrix" : @[],
                         @"pmatrix" : @[ @"(", @")"],
                         @"bmatrix" : @[ @"[", @"]"],
                         @"Bmatrix" : @[ @"{", @"}"],
                         @"vmatrix" : @[ @"vert", @"vert"],
                         @"Vmatrix" : @[ @"Vert", @"Vert"], };
-    });
+    }
     if ([matrixEnvs objectForKey:env]) {
         // it is set to matrix as the delimiters are converted to latex outside the table.
         table.environment = @"matrix";
@@ -500,8 +499,7 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
 + (NSMutableDictionary<NSString*, MTMathAtom*>*) supportedLatexSymbols
 {
     static NSMutableDictionary<NSString*, MTMathAtom*>* commands = nil;
-    static dispatch_once_t commandsToken;
-    dispatch_once(&commandsToken, ^{
+    if (!commands) {
         commands = [NSMutableDictionary dictionaryWithDictionary:@{
                      @"square" : [MTMathAtomFactory placeholder],
                      
@@ -876,15 +874,15 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
                      @"oiiint" : [MTMathAtomFactory operatorWithName:@"\u2230" limits:NO],
 
                      }];
-    });
+        
+    }
     return commands;
 }
 
 + (NSDictionary*) aliases
 {
     static NSDictionary* aliases = nil;
-    static dispatch_once_t aliasesToken;
-    dispatch_once(&aliasesToken, ^{
+    if (!aliases) {
         aliases = @{
                     @"lnot" : @"neg",
                     @"land" : @"wedge",
@@ -932,15 +930,14 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
                     @"varnothing" : @"emptyset",
                     @"part" : @"partial",
                     };
-    });
+    }
     return aliases;
 }
 
 + (NSMutableDictionary<NSString*, NSString*>*) textToLatexSymbolNames
 {
     static NSMutableDictionary<NSString*, NSString*>* textToCommands = nil;
-    static dispatch_once_t textToCommandsToken;
-    dispatch_once(&textToCommandsToken, ^{
+    if (!textToCommands) {
         NSDictionary* commands = [self supportedLatexSymbols];
         textToCommands = [NSMutableDictionary dictionaryWithCapacity:commands.count];
         for (NSString* command in commands) {
@@ -965,15 +962,14 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
             // In other cases replace the command.
             textToCommands[atom.nucleus] = command;
         }
-    });
+    }
     return textToCommands;
 }
 
 + (NSDictionary<NSString*, NSString*>*) accents
 {
     static NSDictionary* accents = nil;
-    static dispatch_once_t accentsToken;
-    dispatch_once(&accentsToken, ^{
+    if (!accents) {
         accents = @{
                     @"grave" : @"\u0300",
                     @"acute" : @"\u0301",
@@ -993,15 +989,14 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
                     @"overbrace" : @"\u23DE",       // Top curly bracket
                     @"underbrace" : @"\u23DF",      // Bottom curly bracket
                     };
-    });
+    }
     return accents;
 }
 
 + (NSDictionary*) accentValueToName
 {
     static NSDictionary* accentToCommands = nil;
-    static dispatch_once_t accentToCommandsToken;
-    dispatch_once(&accentToCommandsToken, ^{
+    if (!accentToCommands) {
         NSDictionary* accents = [self accents];
         NSMutableDictionary* mutableDict = [NSMutableDictionary dictionaryWithCapacity:accents.count];
         for (NSString* command in accents) {
@@ -1022,15 +1017,14 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
             mutableDict[acc] = command;
         }
         accentToCommands = [mutableDict copy];
-    });
+    }
     return accentToCommands;
 }
 
 +(NSDictionary<NSString*, NSString*> *) delimiters
 {
     static NSDictionary* delims = nil;
-    static dispatch_once_t delimsToken;
-    dispatch_once(&delimsToken, ^{
+    if (!delims) {
         delims = @{
                    @"." : @"", // . means no delimiter
                    @"(" : @"(",
@@ -1069,15 +1063,14 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
                    @"lVert" : @"\u2016",
                    @"rVert" : @"\u2016",
                    };
-    });
+    }
     return delims;
 }
 
 + (NSDictionary*) delimValueToName
 {
     static NSDictionary* delimToCommands = nil;
-    static dispatch_once_t delimToCommandsToken;
-    dispatch_once(&delimToCommandsToken, ^{
+    if (!delimToCommands) {
         NSDictionary* delims = [self delimiters];
         NSMutableDictionary* mutableDict = [NSMutableDictionary dictionaryWithCapacity:delims.count];
         for (NSString* command in delims) {
@@ -1098,7 +1091,7 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
             mutableDict[delim] = command;
         }
         delimToCommands = [mutableDict copy];
-    });
+    }
     return delimToCommands;
 }
 
@@ -1106,8 +1099,7 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
 +(NSDictionary<NSString*, NSNumber*> *) fontStyles
 {
     static NSDictionary<NSString*, NSNumber*>* fontStyles = nil;
-    static dispatch_once_t fontStylesToken;
-    dispatch_once(&fontStylesToken, ^{
+    if (!fontStyles) {
         fontStyles = @{
                        @"mathnormal" : @(kMTFontStyleDefault),
                        @"mathrm": @(kMTFontStyleRoman),
@@ -1137,7 +1129,7 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
                        @"textsf": @(kMTFontStyleSansSerif),
                        @"texttt": @(kMTFontStyleTypewriter),
                    };
-    });
+    }
     return fontStyles;
 }
 
