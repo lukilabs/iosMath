@@ -211,13 +211,22 @@ typedef NS_ENUM(unsigned int, MTLinePosition)  {
 
 @end
 
-/// Rendering of boxed content — draws a rectangular border around the inner display
+/// Rendering of boxed content — draws a rectangular border and/or background fill around the inner display
 @interface MTBoxedDisplay : MTDisplay
 
 - (instancetype)init NS_UNAVAILABLE;
 
 /** The inner display that is boxed. */
 @property (nonatomic, readonly) MTMathListDisplay* inner;
+
+/** Background fill color. Set by \colorbox and \fcolorbox. */
+@property (nonatomic, nullable) MTColor* backgroundColor;
+
+/** Border stroke color. When nil and not a colorbox, uses textColor. */
+@property (nonatomic, nullable) MTColor* borderColor;
+
+/** When YES, no border is drawn unless borderColor is explicitly set. */
+@property (nonatomic) BOOL isColorbox;
 
 @end
 

@@ -740,19 +740,20 @@ NSString *const MTParseError = @"ParseError";
         cancel.innerList = [self buildInternal:true];
         return cancel;
     } else if ([command isEqualToString:@"colorbox"]) {
-        // \colorbox{color}{content} — parse color, create boxed (approximate)
+        // \colorbox{color}{content}
         NSString* color = [self readColor];
-        (void)color;  // Color rendering deferred — renders as boxed for now
         MTBoxed* boxed = [[MTBoxed alloc] init];
+        boxed.backgroundColor = color;
+        boxed.isColorbox = YES;
         boxed.innerList = [self buildInternal:true];
         return boxed;
     } else if ([command isEqualToString:@"fcolorbox"]) {
-        // \fcolorbox{bordercolor}{bgcolor}{content} — parse both colors, create boxed
+        // \fcolorbox{bordercolor}{bgcolor}{content}
         NSString* borderColor = [self readColor];
         NSString* bgColor = [self readColor];
-        (void)borderColor;
-        (void)bgColor;
         MTBoxed* boxed = [[MTBoxed alloc] init];
+        boxed.borderColor = borderColor;
+        boxed.backgroundColor = bgColor;
         boxed.innerList = [self buildInternal:true];
         return boxed;
     } else if ([command isEqualToString:@"rlap"]) {

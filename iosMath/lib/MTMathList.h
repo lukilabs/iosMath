@@ -340,7 +340,7 @@ typedef NS_ENUM(NSUInteger, MTPhantomType)
 
 @end
 
-/** An atom representing boxed content. */
+/** An atom representing boxed content. Also used for \colorbox and \fcolorbox. */
 @interface MTBoxed : MTMathAtom
 
 /// Creates an empty boxed atom.
@@ -348,6 +348,15 @@ typedef NS_ENUM(NSUInteger, MTPhantomType)
 
 /// The inner math list
 @property (nonatomic, nullable) MTMathList* innerList;
+
+/// Background color string (e.g. "yellow", "#FF0000"). Set by \colorbox and \fcolorbox.
+@property (nonatomic, nullable) NSString* backgroundColor;
+
+/// Border color string (e.g. "red", "#FF0000"). Set by \fcolorbox. When nil, \boxed uses textColor; \colorbox draws no border.
+@property (nonatomic, nullable) NSString* borderColor;
+
+/// Whether this box was created by \colorbox (background only, no border by default)
+@property (nonatomic) BOOL isColorbox;
 
 @end
 

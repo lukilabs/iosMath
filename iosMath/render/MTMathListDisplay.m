@@ -914,26 +914,34 @@ static BOOL isIos6Supported() {
 
 - (void)draw:(CGContextRef)context
 {
-    // Draw the inner content
-    [self.inner draw:context];
-
     CGContextSaveGState(context);
 
-    [self.textColor setStroke];
-
-    // Draw a rectangular border around the content with padding.
-    // The border starts at position.x (with halfLine inset) so the stroke
-    // stays within the display's width bounds.
     CGFloat halfLine = self.lineThickness / 2;
     CGFloat x = self.position.x + halfLine;
     CGFloat y = self.position.y - self.inner.descent - self.padding - halfLine;
     CGFloat w = self.inner.width + 2 * self.padding + self.lineThickness;
     CGFloat h = self.inner.ascent + self.inner.descent + 2 * self.padding + self.lineThickness;
-    CGRect borderRect = CGRectMake(x, y, w, h);
+    CGRect boxRect = CGRectMake(x, y, w, h);
 
-    MTBezierPath* path = [MTBezierPath bezierPathWithRect:borderRect];
-    path.lineWidth = self.lineThickness;
-    [path stroke];
+    // Fill background if set (\colorbox, \fcolorbox)
+    if (self.backgroundColor) {
+        [self.backgroundColor setFill];
+        MTBezierPath* fillPath = [MTBezierPath bezierPathWithRect:boxRect];
+        [fillPath fill];
+    }
+
+    // Draw the inner content on top of the background
+    [self.inner draw:context];
+
+    // Draw border: \boxed uses textColor, \fcolorbox uses explicit borderColor, \colorbox draws no border
+    BOOL shouldDrawBorder = !self.isColorbox || self.borderColor != nil;
+    if (shouldDrawBorder) {
+        MTColor* strokeColor = self.borderColor ?: self.textColor;
+        [strokeColor setStroke];
+        MTBezierPath* borderPath = [MTBezierPath bezierPathWithRect:boxRect];
+        borderPath.lineWidth = self.lineThickness;
+        [borderPath stroke];
+    }
 
     CGContextRestoreGState(context);
 }

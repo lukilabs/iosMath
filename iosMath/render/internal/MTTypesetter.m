@@ -1844,6 +1844,13 @@ static const NSInteger kDelimiterShortfallPoints = 5;
     MTBoxedDisplay* boxedDisplay = [[MTBoxedDisplay alloc] initWithInner:innerListDisplay position:_currentPosition range:boxed.indexRange];
     boxedDisplay.padding = padding;
     boxedDisplay.lineThickness = _styleFont.mathTable.fractionRuleThickness;
+    boxedDisplay.isColorbox = boxed.isColorbox;
+    if (boxed.backgroundColor) {
+        boxedDisplay.backgroundColor = [MTColor colorFromHexString:boxed.backgroundColor];
+    }
+    if (boxed.borderColor) {
+        boxedDisplay.borderColor = [MTColor colorFromHexString:boxed.borderColor];
+    }
     boxedDisplay.ascent = innerListDisplay.ascent + padding + boxedDisplay.lineThickness;
     boxedDisplay.descent = innerListDisplay.descent + padding + boxedDisplay.lineThickness;
     boxedDisplay.width = innerListDisplay.width + 2 * padding + 2 * boxedDisplay.lineThickness;

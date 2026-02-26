@@ -650,6 +650,9 @@ static NSString* typeToText(MTMathAtomType type) {
 {
     MTBoxed *copy = [super copyWithZone:zone];
     copy.innerList = [self.innerList copyWithZone:zone];
+    copy.backgroundColor = self.backgroundColor;
+    copy.borderColor = self.borderColor;
+    copy.isColorbox = self.isColorbox;
     return copy;
 }
 
@@ -657,6 +660,9 @@ static NSString* typeToText(MTMathAtomType type) {
 {
     MTBoxed *newBoxed = [super finalized];
     newBoxed.innerList = newBoxed.innerList.finalized;
+    newBoxed.backgroundColor = self.backgroundColor;
+    newBoxed.borderColor = self.borderColor;
+    newBoxed.isColorbox = self.isColorbox;
     return newBoxed;
 }
 
