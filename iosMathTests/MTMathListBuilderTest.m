@@ -1386,6 +1386,43 @@ static NSArray* getTestDataParseErrors() {
     XCTAssertEqualObjects(latex, @"\\sum \\nolimits ", @"%@", desc);
 }
 
+- (void) testNonASCIICharacters
+{
+    // CJK characters inside \xrightarrow and plain braces
+    NSString* str = @"\\xrightarrow{中文}";
+    MTMathList* list = [MTMathListBuilder buildFromString:str];
+    XCTAssertNotNil(list, @"Failed to parse \\xrightarrow with CJK");
+    XCTAssertEqual(list.atoms.count, 1u, @"Expected one extensible arrow atom");
+
+    // CJK in a plain group — each character becomes an ordinary atom
+    str = @"中文";
+    list = [MTMathListBuilder buildFromString:str];
+    XCTAssertNotNil(list, @"Failed to parse bare CJK");
+    XCTAssertEqual(list.atoms.count, 2u, @"Expected two ordinary atoms for two CJK characters");
+    XCTAssertEqual(list.atoms[0].type, kMTMathAtomOrdinary, @"First CJK char should be ordinary");
+    XCTAssertEqual(list.atoms[1].type, kMTMathAtomOrdinary, @"Second CJK char should be ordinary");
+    XCTAssertEqualObjects(list.atoms[0].nucleus, @"中", @"First atom nucleus");
+    XCTAssertEqualObjects(list.atoms[1].nucleus, @"文", @"Second atom nucleus");
+
+    // Greek letters canonicalize to Variable atoms, identical to \alpha / \beta
+    str = @"α+β";
+    list = [MTMathListBuilder buildFromString:str];
+    XCTAssertNotNil(list, @"Failed to parse Greek letters");
+    XCTAssertEqual(list.atoms.count, 3u, @"Expected α, +, β");
+    XCTAssertEqual(list.atoms[0].type, kMTMathAtomVariable, @"α should canonicalize to variable");
+    XCTAssertEqualObjects(list.atoms[0].nucleus, @"α", @"α nucleus");
+    XCTAssertEqual(list.atoms[1].type, kMTMathAtomBinaryOperator, @"+ should be binary operator");
+    XCTAssertEqual(list.atoms[2].type, kMTMathAtomVariable, @"β should canonicalize to variable");
+
+    // Supplementary-plane character (𝕏 U+1D54F, surrogate pair) produces one ordinary atom
+    str = @"𝕏";
+    list = [MTMathListBuilder buildFromString:str];
+    XCTAssertNotNil(list, @"Failed to parse supplementary-plane char");
+    XCTAssertEqual(list.atoms.count, 1u, @"Expected one atom for surrogate pair");
+    XCTAssertEqual(list.atoms[0].type, kMTMathAtomOrdinary, @"Surrogate-pair atom should be ordinary");
+    XCTAssertEqual(list.atoms[0].nucleus.length, 2u, @"Nucleus should hold both UTF-16 units");
+}
+
 - (void) testFontSizeRoundTrip
 {
     NSArray* commands = @[@"tiny", @"scriptsize", @"footnotesize", @"small",

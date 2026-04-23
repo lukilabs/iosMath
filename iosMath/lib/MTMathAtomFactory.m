@@ -79,9 +79,21 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
 + (MTMathAtom *)atomForCharacter:(unichar)ch
 {
     NSString *chStr = [NSString stringWithCharacters:&ch length:1];
-    if (ch < 0x21 || ch > 0x7E) {
-        // skip non ascii characters and spaces
+    if (ch < 0x21) {
+        // skip control characters and spaces
         return nil;
+    } else if (ch >= 0xD800 && ch <= 0xDFFF) {
+        // UTF-16 surrogates cannot stand alone; supplementary-plane chars unsupported
+        return nil;
+    } else if (ch > 0x7E) {
+        // Non-ASCII BMP character (CJK, Latin Extended, etc.)
+        // Canonicalize to the known LaTeX atom if this character is a symbol nucleus.
+        NSString* symName = [self textToLatexSymbolNames][chStr];
+        if (symName) {
+            MTMathAtom* known = [[self supportedLatexSymbols][symName] copy];
+            if (known) return known;
+        }
+        return [MTMathAtom atomWithType:kMTMathAtomOrdinary value:chStr];
     } else if (ch == '$' || ch == '%' || ch == '#' || ch == '&' || ch == '~' || ch == '\'') {
         // These are latex control characters that have special meanings. We don't support them.
         return nil;

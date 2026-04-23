@@ -272,6 +272,21 @@ NSString *const MTParseError = @"ParseError";
         } else if (_spacesAllowed && ch == ' ') {
             // If spaces are allowed then spaces do not need escaping with a \ before being used.
             atom = [MTMathAtomFactory atomForLatexSymbolName:@" "];
+        } else if (ch >= 0xD800 && ch <= 0xDBFF) {
+            // High surrogate — try to pair with the next low surrogate
+            if ([self hasCharacters]) {
+                unichar low = [self getNextCharacter];
+                if (low >= 0xDC00 && low <= 0xDFFF) {
+                    unichar pair[2] = {ch, low};
+                    NSString* pairStr = [NSString stringWithCharacters:pair length:2];
+                    atom = [MTMathAtom atomWithType:kMTMathAtomOrdinary value:pairStr];
+                } else {
+                    [self unlookCharacter];
+                    continue;  // lone high surrogate — skip
+                }
+            } else {
+                continue;  // lone high surrogate at end of input — skip
+            }
         } else {
             atom = [MTMathAtomFactory atomForCharacter:ch];
             if (!atom) {
@@ -327,7 +342,7 @@ NSString *const MTParseError = @"ParseError";
         return nil;
     }
     
-    // Ignore spaces and nonascii.
+    // Ignore whitespace.
     [self skipSpaces];
 
     // a string of all upper and lower case characters.
@@ -375,8 +390,8 @@ NSString *const MTParseError = @"ParseError";
 {
     while ([self hasCharacters]) {
         unichar ch = [self getNextCharacter];
-        if (ch < 0x21 || ch > 0x7E) {
-            // skip non ascii characters and spaces
+        if (ch <= 0x20) {
+            // skip ASCII control characters and spaces
             continue;
         } else {
             [self unlookCharacter];
@@ -450,7 +465,7 @@ NSString *const MTParseError = @"ParseError";
     return value * muPerUnit;
 }
 
-#define MTAssertNotSpace(ch) NSAssert((ch) >= 0x21 && (ch) <= 0x7E, @"Expected non space character %c", (ch));
+#define MTAssertNotSpace(ch) NSAssert((ch) > 0x20, @"Expected non space character %c", (ch));
 
 - (BOOL) expectCharacter:(unichar) ch
 {
@@ -510,7 +525,7 @@ NSString *const MTParseError = @"ParseError";
 
 - (NSString*) readDelimiter
 {
-    // Ignore spaces and nonascii.
+    // Ignore whitespace.
     [self skipSpaces];
     while([self hasCharacters]) {
         unichar ch = [self getNextCharacter];
@@ -540,7 +555,7 @@ NSString *const MTParseError = @"ParseError";
         return nil;
     }
     
-    // Ignore spaces and nonascii.
+    // Ignore whitespace.
     [self skipSpaces];
     NSString* env = [self readString];
     // Accept trailing * for starred environments (e.g. align*)
