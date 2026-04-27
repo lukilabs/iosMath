@@ -190,6 +190,11 @@ NSString *const MTParseError = @"ParseError";
         } else if (ch == '\\') {
             // \ means a command
             NSString* command = [self readCommand];
+            if ([command isEqualToString:@"dots"]) {
+                // Context-aware dispatch: peek at the next token to choose between
+                // low (…) and centered (⋯) ellipsis, mirroring KaTeX/amsmath \dots.
+                command = [self resolveDotsVariant];
+            }
             MTMathList* done = [self stopCommand:command list:list stopChar:stop];
             if (done) {
                 return done;
@@ -398,6 +403,63 @@ NSString *const MTParseError = @"ParseError";
             return;
         }
     }
+}
+
+// Resolves \dots to one of the amsmath siblings (\dotsc, \dotsb, \dotsi, \dotso)
+// by peeking at the next token without consuming it. Mirrors KaTeX's dispatcher
+// in src/macros.ts. Returns the alias name to substitute for "dots".
+- (NSString*) resolveDotsVariant
+{
+    int savedPos = _currentChar;
+    [self skipSpaces];
+    if (![self hasCharacters]) {
+        _currentChar = savedPos;
+        return @"dotso";
+    }
+    unichar ch = [self getNextCharacter];
+    NSString* result = @"dotso";
+    if (ch == ',') {
+        result = @"dotsc";
+    } else if (ch == '+' || ch == '-' || ch == '*' || ch == '=' ||
+               ch == '<' || ch == '>' || ch == ':' || ch == '/') {
+        result = @"dotsb";
+    } else if (ch == '\\' && [self hasCharacters]) {
+        NSString* nextCmd = [self readCommand];
+        result = [self dotsVariantForFollowingCommand:nextCmd];
+    }
+    _currentChar = savedPos;
+    return result;
+}
+
+- (NSString*) dotsVariantForFollowingCommand:(NSString*) cmd
+{
+    static NSSet<NSString*>* integralCmds = nil;
+    static NSSet<NSString*>* binRelCmds = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        integralCmds = [NSSet setWithObjects:@"int", @"oint", @"iint", @"iiint",
+                        @"oiint", @"oiiint", nil];
+        binRelCmds = [NSSet setWithObjects:
+                      @"longrightarrow", @"Longrightarrow",
+                      @"longleftarrow", @"Longleftarrow",
+                      @"longleftrightarrow", @"Longleftrightarrow",
+                      @"mapsto", @"longmapsto",
+                      @"to", @"rightarrow", @"leftarrow", @"leftrightarrow",
+                      nil];
+    });
+    if ([integralCmds containsObject:cmd]) return @"dotsi";
+    if ([binRelCmds containsObject:cmd]) return @"dotsb";
+    MTMathAtom* probe = [MTMathAtomFactory atomForLatexSymbolName:cmd];
+    if (probe) {
+        switch (probe.type) {
+            case kMTMathAtomBinaryOperator:
+            case kMTMathAtomRelation:
+            case kMTMathAtomLargeOperator:
+                return @"dotsb";
+            default: break;
+        }
+    }
+    return @"dotso";
 }
 
 /// Reads a length value like {2cm}, {1.5em}, {18mu} and returns the value in mu units.

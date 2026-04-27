@@ -1437,4 +1437,85 @@ static NSArray* getTestDataParseErrors() {
     }
 }
 
+// Returns the nucleus of the first ordinary atom whose nucleus is one of the
+// recognized ellipsis characters. Helper for the \dots dispatcher tests.
+- (NSString*) findDotsNucleusInList:(MTMathList*) list
+{
+    for (MTMathAtom* atom in list.atoms) {
+        if (atom.type == kMTMathAtomOrdinary &&
+            ([atom.nucleus isEqualToString:@"…"] || [atom.nucleus isEqualToString:@"⋯"])) {
+            return atom.nucleus;
+        }
+    }
+    return nil;
+}
+
+- (void) testStaticDotsAliases
+{
+    NSDictionary* expected = @{
+        @"\\dotsc" : @"…",
+        @"\\dotso" : @"…",
+        @"\\dotsb" : @"⋯",
+        @"\\dotsm" : @"⋯",
+        @"\\dotsi" : @"⋯",
+    };
+    for (NSString* input in expected) {
+        NSError* error = nil;
+        MTMathList* list = [MTMathListBuilder buildFromString:input error:&error];
+        XCTAssertNil(error, @"Parse error for %@: %@", input, error);
+        XCTAssertEqual(list.atoms.count, 1u, @"Expected single atom for %@", input);
+        MTMathAtom* atom = list.atoms.firstObject;
+        XCTAssertEqual(atom.type, kMTMathAtomOrdinary, @"Wrong type for %@", input);
+        XCTAssertEqualObjects(atom.nucleus, expected[input], @"Wrong nucleus for %@", input);
+    }
+}
+
+- (void) testDotsContextAware
+{
+    // Each row: input, expected dots glyph (… low, ⋯ centered), description.
+    NSArray* cases = @[
+        @[ @"a,\\dots,z",            @"…", @"comma context -> dotsc" ],
+        @[ @"1+\\dots+n",            @"⋯", @"binary op + -> dotsb" ],
+        @[ @"1=\\dots=n",            @"⋯", @"relation = -> dotsb" ],
+        @[ @"1<\\dots<n",            @"⋯", @"relation < -> dotsb" ],
+        @[ @"\\dots\\sum_i x_i",     @"⋯", @"large op \\sum -> dotsb" ],
+        @[ @"\\dots\\int f",         @"⋯", @"integral \\int -> dotsi (centered)" ],
+        @[ @"\\dots\\oint f",        @"⋯", @"integral \\oint -> dotsi (centered)" ],
+        @[ @"\\dots\\longrightarrow x", @"⋯", @"long arrow -> dotsb" ],
+        @[ @"\\dots z",              @"…", @"plain letter -> dotso default" ],
+        @[ @"a\\dots",               @"…", @"end of input -> dotso default" ],
+        @[ @"(a, b, \\dots)",        @"…", @"close paren -> dotso default" ],
+        @[ @"x\\cdot\\dots\\cdot y", @"⋯", @"\\cdot is binary -> dotsb" ],
+    ];
+    for (NSArray* row in cases) {
+        NSString* input = row[0];
+        NSString* expected = row[1];
+        NSString* desc = row[2];
+        NSError* error = nil;
+        MTMathList* list = [MTMathListBuilder buildFromString:input error:&error];
+        XCTAssertNil(error, @"Parse error in %@: %@", desc, error);
+        NSString* found = [self findDotsNucleusInList:list];
+        XCTAssertEqualObjects(found, expected, @"%@: input=%@", desc, input);
+    }
+}
+
+- (void) testExistingDotsCommandsUnchanged
+{
+    NSDictionary* expected = @{
+        @"\\ldots" : @"…",
+        @"\\cdots" : @"⋯",
+        @"\\vdots" : @"⋮",
+        @"\\ddots" : @"⋱",
+    };
+    for (NSString* input in expected) {
+        NSError* error = nil;
+        MTMathList* list = [MTMathListBuilder buildFromString:input error:&error];
+        XCTAssertNil(error, @"Parse error for %@: %@", input, error);
+        XCTAssertEqual(list.atoms.count, 1u, @"Expected single atom for %@", input);
+        MTMathAtom* atom = list.atoms.firstObject;
+        XCTAssertEqual(atom.type, kMTMathAtomOrdinary, @"Wrong type for %@", input);
+        XCTAssertEqualObjects(atom.nucleus, expected[input], @"Wrong nucleus for %@", input);
+    }
+}
+
 @end
