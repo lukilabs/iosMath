@@ -683,13 +683,17 @@ NSString *const MTParseError = @"ParseError";
     } else if ([command isEqualToString:@"sqrt"]) {
         // A sqrt command with one argument
         MTRadical* rad = [MTRadical new];
-        unichar ch = [self getNextCharacter];
-        if (ch == '[') {
-            // special handling for sqrt[degree]{radicand}
-            rad.degree = [self buildInternal:false stopChar:']'];
-            rad.radicand = [self buildInternal:true];
+        if ([self hasCharacters]) {
+            unichar ch = [self getNextCharacter];
+            if (ch == '[') {
+                // special handling for sqrt[degree]{radicand}
+                rad.degree = [self buildInternal:false stopChar:']'];
+                rad.radicand = [self buildInternal:true];
+            } else {
+                [self unlookCharacter];
+                rad.radicand = [self buildInternal:true];
+            }
         } else {
-            [self unlookCharacter];
             rad.radicand = [self buildInternal:true];
         }
         return rad;

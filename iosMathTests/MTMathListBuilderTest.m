@@ -375,6 +375,15 @@ static NSArray* getTestDataSuperSubScript() {
     XCTAssertEqualObjects(latex, @"\\sqrt{2}", @"%@", desc);
 }
 
+- (void) testSqrtAtEndOfInput
+{
+    NSString *str = @"\\dots \\sqrt";
+    MTMathList* list = [MTMathListBuilder buildFromString:str];
+    XCTAssertNotNil(list, @"Parsing must not crash when \\sqrt is at end of input");
+    XCTAssertEqualObjects(@(list.atoms.count), @2);
+    XCTAssertEqual(((MTMathAtom *)list.atoms[1]).type, kMTMathAtomRadical);
+}
+
 - (void) testSqrtInSqrt
 {
     NSString *str = @"\\sqrt\\sqrt2";
